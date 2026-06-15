@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_15_053000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_15_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -62,6 +62,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_15_053000) do
     t.text "notes"
     t.string "registration_number"
     t.string "slip"
+    t.string "slug", null: false
     t.datetime "updated_at", null: false
     t.integer "year"
     t.index ["account_id", "asset_type", "name"], name: "index_assets_on_account_id_and_asset_type_and_name", unique: true
@@ -69,6 +70,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_15_053000) do
     t.index ["account_id"], name: "index_assets_on_account_id"
     t.index ["asset_type"], name: "index_assets_on_asset_type"
     t.index ["name"], name: "index_assets_on_name"
+    t.index ["slug"], name: "index_assets_on_slug", unique: true
     t.check_constraint "asset_type::text = ANY (ARRAY['vessel'::character varying, 'home'::character varying, 'pet'::character varying, 'audit'::character varying, 'other'::character varying]::text[])", name: "chk_assets_asset_type"
     t.check_constraint "length IS NULL OR length > 0::numeric", name: "chk_assets_length_positive"
     t.check_constraint "year IS NULL OR year > 1900 AND year <= 2100", name: "chk_assets_year_reasonable"
@@ -79,11 +81,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_15_053000) do
     t.bigint "asset_id"
     t.text "body", null: false
     t.datetime "created_at", null: false
+    t.date "due_date"
     t.string "note_type", default: "general", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.index ["account_id"], name: "index_binder_notes_on_account_id"
     t.index ["asset_id"], name: "index_binder_notes_on_asset_id"
+    t.index ["due_date"], name: "index_binder_notes_on_due_date"
     t.index ["note_type"], name: "index_binder_notes_on_note_type"
   end
 
@@ -113,6 +117,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_15_053000) do
 
   create_table "reminders", force: :cascade do |t|
     t.bigint "asset_id", null: false
+    t.datetime "completed_at"
     t.datetime "created_at", null: false
     t.date "due_date", null: false
     t.string "reminder_type", default: "other", null: false
@@ -120,6 +125,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_15_053000) do
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.index ["asset_id"], name: "index_reminders_on_asset_id"
+    t.index ["completed_at"], name: "index_reminders_on_completed_at"
     t.index ["status", "due_date"], name: "index_reminders_on_status_and_due_date"
     t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'completed'::character varying]::text[])", name: "chk_reminders_status"
   end

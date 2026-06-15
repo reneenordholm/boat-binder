@@ -38,5 +38,12 @@ module ActiveSupport
     def create_vessel(account: create_account)
       create_asset(account: account, asset_type: "vessel")
     end
+
+    def sign_in_as(user = create_user)
+      post session_path, params: {
+        email_address: user.email_address,
+        password: "password"
+      }
+    end
   end
 end

@@ -14,6 +14,10 @@ class Reminder < ApplicationRecord
   scope :upcoming, -> { pending.order(:due_date) }
 
   def complete!
-    update!(status: "completed")
+    update!(status: "completed", completed_at: Time.current)
+  end
+
+  def reopen!
+    update!(status: "pending", completed_at: nil)
   end
 end

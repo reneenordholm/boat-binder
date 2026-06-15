@@ -6,4 +6,10 @@ class BinderNoteTest < ActiveSupport::TestCase
 
     assert note.valid?
   end
+
+  test "due date marks a note for attention" do
+    note = BinderNote.new(account: create_account, title: "Line chafe", body: "Replace spring line.", note_type: "issue", due_date: Date.tomorrow)
+
+    assert note.attention_due?
+  end
 end

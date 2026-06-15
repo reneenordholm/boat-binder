@@ -35,4 +35,32 @@ class AssetTest < ActiveSupport::TestCase
     assert_equal "Needs attention", asset.status_label
     assert_equal :urgent, asset.status_tone
   end
+
+  test "generates readable unique slugs and uses them in routes" do
+    account = create_account(name: "Elliott Family")
+    first = create_vessel(account: account)
+    second = Asset.create!(account: create_account(name: "Second Owner"), asset_type: "vessel", name: first.name)
+
+    assert_equal "blue-meridian", first.slug
+    assert_equal "blue-meridian-2", second.slug
+    assert_equal first.slug, first.to_param
+  end
+
+  test "searches vessels by name owner marina and slip" do
+    account = create_account(name: "Elliott Family")
+    vessel = create_vessel(account: account)
+
+    assert_includes Asset.vessels.search("Blue").to_a, vessel
+    assert_includes Asset.vessels.search("Elliott").to_a, vessel
+    assert_includes Asset.vessels.search("Bainbridge").to_a, vessel
+    assert_includes Asset.vessels.search("C-18").to_a, vessel
+  end
+
+  test "owner can have multiple vessels" do
+    account = create_account(name: "Elliott Family")
+    first = create_vessel(account: account)
+    second = Asset.create!(account: account, asset_type: "vessel", name: "Harbor Light")
+
+    assert_equal [ first, second ].sort_by(&:id), account.assets.vessels.to_a.sort_by(&:id)
+  end
 end

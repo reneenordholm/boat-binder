@@ -33,7 +33,7 @@ class ServiceVisitsController < ApplicationController
   private
 
   def set_vessel
-    @vessel = Asset.vessels.find(params[:vessel_id])
+    @vessel = Asset.vessels.find_by!(slug: params[:vessel_id])
   end
 
   def service_visit_params

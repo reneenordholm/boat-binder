@@ -68,6 +68,19 @@ vessels = [
     notes: "Owner prefers fuel above half tank and interior dehumidifiers running after each visit."
   ),
   Asset.create!(
+    account: owners[0],
+    asset_type: "vessel",
+    name: "Harbor Light",
+    make: "Back Cove",
+    model: "37",
+    year: 2017,
+    length: 37,
+    registration_number: "HY-3709",
+    marina: "Bainbridge Marina",
+    slip: "C-21",
+    notes: "Same owner as Blue Meridian. Check cabin heaters during winter visits."
+  ),
+  Asset.create!(
     account: owners[1],
     asset_type: "vessel",
     name: "Tide Runner",
@@ -115,7 +128,7 @@ png = Base64.decode64(
 vessels.each_with_index do |vessel, index|
   Reminder.create!(
     asset: vessel,
-    title: [ "Replace zincs", "Insurance renewal", "Registration tabs", "Annual safety inspection" ][index],
+    title: [ "Replace zincs", "Winter heater check", "Insurance renewal", "Registration tabs", "Annual safety inspection" ][index],
     due_date: Date.current + (index + 2).days,
     reminder_type: Reminder::REMINDER_TYPES[index % Reminder::REMINDER_TYPES.length],
     status: "pending"
@@ -126,7 +139,8 @@ vessels.each_with_index do |vessel, index|
     title: "Clean strainers",
     due_date: Date.current - (index + 1).days,
     reminder_type: "maintenance",
-    status: index.even? ? "completed" : "pending"
+    status: index.even? ? "completed" : "pending",
+    completed_at: index.even? ? Time.current - index.days : nil
   )
 
   BinderNote.create!(
@@ -134,7 +148,8 @@ vessels.each_with_index do |vessel, index|
     asset: vessel,
     title: "Owner preference",
     body: "Send concise reports with photos and note anything that might affect weekend use.",
-    note_type: "owner_preference"
+    note_type: "owner_preference",
+    due_date: index == 1 ? Date.current + 5.days : nil
   )
 
   BinderNote.create!(
@@ -142,7 +157,8 @@ vessels.each_with_index do |vessel, index|
     asset: vessel,
     title: "Dock line wear",
     body: "Forward spring line shows chafe and should be replaced before the next heavy-weather cycle.",
-    note_type: index == 0 ? "issue" : "maintenance"
+    note_type: index == 0 ? "issue" : "maintenance",
+    due_date: index == 0 ? Date.current + 2.days : nil
   )
 
   visit = ServiceVisit.create!(
@@ -175,6 +191,21 @@ vessels.each_with_index do |vessel, index|
     filename: "#{vessel.name.parameterize}-registration.txt",
     content_type: "text/plain"
   )
+
+  if index < 3
+    policy = Document.create!(
+      account: vessel.account,
+      asset: vessel,
+      title: "#{vessel.name} insurance",
+      document_type: "insurance",
+      notes: "Sample insurance certificate for demo review."
+    )
+    policy.file.attach(
+      io: StringIO.new("Insurance certificate for #{vessel.name}\n"),
+      filename: "#{vessel.name.parameterize}-insurance.txt",
+      content_type: "text/plain"
+    )
+  end
 end
 
 puts "Seeded #{User.count} users, #{Asset.vessels.count} vessels, #{ServiceVisit.count} visits, #{Reminder.count} reminders."

@@ -1,17 +1,28 @@
 <section class="space-y-5">
-  <div>
-    <p class="text-sm font-bold uppercase tracking-normal text-cyan-700">Fleet</p>
-    <h1 class="mt-1 text-3xl font-black tracking-normal">Vessels</h1>
+  <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div>
+      <p class="text-sm font-bold uppercase tracking-normal text-cyan-700">Fleet</p>
+      <h1 class="mt-1 text-3xl font-black tracking-normal">Vessels</h1>
+    </div>
+    <%= link_to "Add vessel", new_vessel_path, class: "inline-flex min-h-12 items-center justify-center rounded-md bg-cyan-700 px-5 py-3 text-base font-bold text-white shadow-sm" %>
   </div>
 
+  <%= form_with url: vessels_path, method: :get, class: "rounded-md border border-slate-200 bg-white p-3 shadow-sm" do |form| %>
+    <div class="flex flex-col gap-3 sm:flex-row">
+      <%= form.search_field :q, value: @query, placeholder: "Search vessel, owner, marina, or slip", class: "min-h-12 flex-1 rounded-md border border-slate-300 px-4 py-3 text-base" %>
+      <%= form.submit "Search", class: "min-h-12 rounded-md bg-slate-900 px-5 py-3 text-base font-bold text-white" %>
+    </div>
+  <% end %>
+
   <div class="space-y-3">
-    <% @vessels.each do |vessel| %>
+    <% if @vessels.any? %>
+      <% @vessels.each do |vessel| %>
       <%= link_to vessel_path(vessel), class: "block rounded-md border border-slate-200 bg-white p-4 shadow-sm" do %>
         <div class="flex items-start justify-between gap-3">
           <div>
             <h2 class="text-xl font-black"><%= vessel.name %></h2>
             <p class="mt-1 text-sm font-semibold text-slate-600"><%= vessel.owner_name %></p>
-            <p class="mt-1 text-sm text-slate-500"><%= [vessel.marina, vessel.slip.presence && "Slip #{vessel.slip}"].compact.join(" - ") %></p>
+            <p class="mt-1 text-sm text-slate-500"><%= vessel.location_label %></p>
           </div>
           <% if vessel.next_reminder %>
             <%= status_chip(short_date(vessel.next_reminder.due_date), tone: :warning) %>
@@ -28,6 +39,12 @@
           </div>
         </div>
       <% end %>
+      <% end %>
+    <% else %>
+      <div class="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+        <p class="font-black">No vessels found</p>
+        <p class="mt-1 text-sm text-slate-600">Try a different search or add a new vessel.</p>
+      </div>
     <% end %>
   </div>
 </section>

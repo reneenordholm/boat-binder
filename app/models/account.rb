@@ -3,6 +3,7 @@ class Account < ApplicationRecord
 
   has_many :contacts, dependent: :destroy
   has_many :assets, dependent: :destroy
+  has_many :vessel_assets, -> { where(asset_type: "vessel").order(:name) }, class_name: "Asset"
   has_many :documents, dependent: :destroy
   has_many :binder_notes, dependent: :destroy
 

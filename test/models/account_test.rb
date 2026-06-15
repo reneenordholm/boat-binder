@@ -15,5 +15,6 @@ class AccountTest < ActiveSupport::TestCase
 
     assert_equal [ contact ], account.contacts.to_a
     assert_equal [ asset ], account.assets.to_a
+    assert_equal [ asset ], account.vessel_assets.to_a
   end
 end

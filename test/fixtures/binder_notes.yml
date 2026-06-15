@@ -5,11 +5,12 @@ one:
   asset: one
   title: MyString
   body: MyText
-  note_type: MyString
+  note_type: issue
+  due_date: 2026-06-20
 
 two:
   account: two
   asset: two
   title: MyString
   body: MyText
-  note_type: MyString
+  note_type: general

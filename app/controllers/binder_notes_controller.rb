@@ -12,13 +12,19 @@ class BinderNotesController < ApplicationController
     end
   end
 
+  def destroy
+    @binder_note = @vessel.binder_notes.find(params[:id])
+    @binder_note.destroy!
+    redirect_to vessel_path(@vessel, anchor: "notes"), notice: "Note removed."
+  end
+
   private
 
   def set_vessel
-    @vessel = Asset.vessels.find(params[:vessel_id])
+    @vessel = Asset.vessels.find_by!(slug: params[:vessel_id])
   end
 
   def binder_note_params
-    params.require(:binder_note).permit(:title, :body, :note_type)
+    params.require(:binder_note).permit(:title, :body, :note_type, :due_date)
   end
 end

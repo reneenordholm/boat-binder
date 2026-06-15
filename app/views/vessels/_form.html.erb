@@ -1,0 +1,64 @@
+<%= field_error_messages(vessel) %>
+
+<%= form_with model: vessel, url: vessel.persisted? ? vessel_path(vessel) : vessels_path, class: "space-y-5" do |form| %>
+  <section class="space-y-4 rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+    <h2 class="text-lg font-black">Owner</h2>
+    <div>
+      <%= form.label :account_id, "Owner account", class: "text-sm font-semibold text-slate-700" %>
+      <%= form.collection_select :account_id, accounts, :id, :name, { prompt: "Select owner" }, class: "mt-2 min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
+    </div>
+  </section>
+
+  <section class="space-y-4 rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+    <h2 class="text-lg font-black">Vessel details</h2>
+    <div>
+      <%= form.label :name, "Vessel name", class: "text-sm font-semibold text-slate-700" %>
+      <%= form.text_field :name, class: "mt-2 min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
+    </div>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <div>
+        <%= form.label :make, class: "text-sm font-semibold text-slate-700" %>
+        <%= form.text_field :make, class: "mt-2 min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
+      </div>
+      <div>
+        <%= form.label :model, class: "text-sm font-semibold text-slate-700" %>
+        <%= form.text_field :model, class: "mt-2 min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
+      </div>
+      <div>
+        <%= form.label :year, class: "text-sm font-semibold text-slate-700" %>
+        <%= form.number_field :year, inputmode: "numeric", class: "mt-2 min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
+      </div>
+      <div>
+        <%= form.label :length, "Length (ft)", class: "text-sm font-semibold text-slate-700" %>
+        <%= form.number_field :length, step: "0.1", inputmode: "decimal", class: "mt-2 min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
+      </div>
+    </div>
+    <div>
+      <%= form.label :registration_number, class: "text-sm font-semibold text-slate-700" %>
+      <%= form.text_field :registration_number, class: "mt-2 min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
+    </div>
+  </section>
+
+  <section class="space-y-4 rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+    <h2 class="text-lg font-black">Dock location</h2>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <div>
+        <%= form.label :marina, class: "text-sm font-semibold text-slate-700" %>
+        <%= form.text_field :marina, class: "mt-2 min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
+      </div>
+      <div>
+        <%= form.label :slip, class: "text-sm font-semibold text-slate-700" %>
+        <%= form.text_field :slip, class: "mt-2 min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
+      </div>
+    </div>
+    <div>
+      <%= form.label :notes, class: "text-sm font-semibold text-slate-700" %>
+      <%= form.text_area :notes, rows: 5, class: "mt-2 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
+    </div>
+  </section>
+
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+    <%= form.submit vessel.persisted? ? "Save vessel" : "Add vessel", class: "min-h-12 rounded-md bg-cyan-700 px-5 py-3 text-base font-black text-white shadow-sm" %>
+    <%= link_to "Cancel", vessel.persisted? ? vessel_path(vessel) : vessels_path, class: "inline-flex min-h-12 items-center justify-center rounded-md px-5 py-3 text-base font-bold text-slate-700" %>
+  </div>
+<% end %>

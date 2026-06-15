@@ -1,7 +1,10 @@
 <section class="space-y-5">
-  <div>
-    <p class="text-sm font-bold uppercase tracking-normal text-cyan-700">Work queue</p>
-    <h1 class="mt-1 text-3xl font-black tracking-normal">Reminders</h1>
+  <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div>
+      <p class="text-sm font-bold uppercase tracking-normal text-cyan-700">Work queue</p>
+      <h1 class="mt-1 text-3xl font-black tracking-normal">Reminders</h1>
+    </div>
+    <%= link_to "Add reminder", new_reminder_path, class: "inline-flex min-h-12 items-center justify-center rounded-md bg-cyan-700 px-5 py-3 text-base font-bold text-white shadow-sm" %>
   </div>
 
   <div class="space-y-3">
@@ -10,14 +13,22 @@
         <div class="flex items-start justify-between gap-3">
           <div>
             <p class="text-lg font-black"><%= reminder.title %></p>
-            <p class="mt-1 text-sm text-slate-600"><%= reminder.asset.name %> - <%= reminder.asset.account.name %></p>
+            <p class="mt-1 text-sm text-slate-600"><%= link_to reminder.asset.name, vessel_path(reminder.asset), class: "font-bold text-cyan-700" %> - <%= reminder.asset.account.name %></p>
             <p class="mt-1 text-sm font-semibold text-slate-500"><%= reminder.reminder_type.humanize %> due <%= short_date(reminder.due_date) %></p>
+            <% if reminder.completed_at.present? %>
+              <p class="mt-1 text-xs font-semibold text-emerald-700">Completed <%= short_date(reminder.completed_at.to_date) %></p>
+            <% end %>
           </div>
           <%= status_chip(reminder.status.humanize, tone: reminder.status == "completed" ? :success : :warning) %>
         </div>
-        <% if reminder.status == "pending" %>
-          <%= button_to "Mark complete", reminder_path(reminder), method: :patch, class: "mt-4 min-h-12 w-full rounded-md bg-emerald-700 px-4 py-3 text-base font-bold text-white" %>
-        <% end %>
+        <div class="mt-4 flex flex-col gap-2 sm:flex-row">
+          <% if reminder.status == "pending" %>
+            <%= button_to "Mark complete", reminder_path(reminder, status_action: "complete"), method: :patch, class: "min-h-12 w-full rounded-md bg-emerald-700 px-4 py-3 text-base font-bold text-white sm:w-auto" %>
+          <% else %>
+            <%= button_to "Mark pending", reminder_path(reminder, status_action: "reopen"), method: :patch, class: "min-h-12 w-full rounded-md border border-slate-200 px-4 py-3 text-base font-bold text-slate-700 sm:w-auto" %>
+          <% end %>
+          <%= link_to "Edit", edit_reminder_path(reminder), class: "inline-flex min-h-12 items-center justify-center rounded-md px-4 py-3 text-base font-bold text-cyan-700" %>
+        </div>
       </div>
     <% end %>
   </div>

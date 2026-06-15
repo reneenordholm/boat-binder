@@ -3,25 +3,27 @@
 one:
   account: one
   asset_type: vessel
-  name: MyString
-  make: MyString
-  model: MyString
-  year: 1
+  name: Blue Meridian
+  slug: blue-meridian
+  make: Sabre
+  model: 48 Salon Express
+  year: 2020
   length: 9.99
-  registration_number: MyString
-  marina: MyString
-  slip: MyString
+  registration_number: HY-1001
+  marina: Bainbridge Marina
+  slip: C-18
   notes: MyText
 
 two:
   account: two
   asset_type: vessel
-  name: MyString
-  make: MyString
-  model: MyString
-  year: 1
+  name: North Star
+  slug: north-star
+  make: Ranger Tugs
+  model: R-31
+  year: 2021
   length: 9.99
-  registration_number: MyString
-  marina: MyString
-  slip: MyString
+  registration_number: HY-1002
+  marina: Port Orchard Marina
+  slip: B-12
   notes: MyText

@@ -4,12 +4,12 @@ one:
   asset: one
   title: MyString
   due_date: 2026-06-14
-  reminder_type: MyString
+  reminder_type: maintenance
   status: MyString
 
 two:
   asset: two
   title: MyString
   due_date: 2026-06-14
-  reminder_type: MyString
+  reminder_type: insurance
   status: MyString

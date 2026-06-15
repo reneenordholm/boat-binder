@@ -8,4 +8,10 @@ class BinderNote < ApplicationRecord
   validates :title, length: { maximum: 120 }
   validates :body, length: { maximum: 2_000 }
   validates :note_type, inclusion: { in: NOTE_TYPES }
+
+  scope :due, -> { where.not(due_date: nil).order(:due_date) }
+
+  def attention_due?
+    due_date.present?
+  end
 end

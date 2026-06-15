@@ -4,12 +4,12 @@ one:
   account: one
   asset: one
   title: MyString
-  document_type: MyString
+  document_type: registration
   notes: MyText
 
 two:
   account: two
   asset: two
   title: MyString
-  document_type: MyString
+  document_type: insurance
   notes: MyText
