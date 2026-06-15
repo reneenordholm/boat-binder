@@ -1,0 +1,70 @@
+<article class="mx-auto max-w-3xl space-y-6 bg-white p-4 shadow-sm ring-1 ring-slate-200 md:p-8">
+  <header class="border-b border-slate-200 pb-5">
+    <%= link_to "Back to #{@vessel.name}", vessel_path(@vessel), class: "inline-flex min-h-10 items-center rounded-md py-2 text-sm font-bold text-cyan-700" %>
+    <p class="mt-4 text-sm font-bold uppercase tracking-normal text-cyan-700">Owner report</p>
+    <h1 class="mt-1 text-3xl font-black tracking-normal"><%= @vessel.name %> Visit Report</h1>
+    <p class="mt-2 text-sm text-slate-600"><%= short_date(@service_visit.visit_date) %> by <%= @service_visit.performed_by_user.email %></p>
+  </header>
+
+  <section class="grid gap-3 sm:grid-cols-3">
+    <div class="rounded-md bg-slate-50 p-4">
+      <p class="text-sm font-semibold text-slate-500">Vessel</p>
+      <p class="mt-1 font-black"><%= @vessel.name %></p>
+    </div>
+    <div class="rounded-md bg-slate-50 p-4">
+      <p class="text-sm font-semibold text-slate-500">Location</p>
+      <p class="mt-1 font-black"><%= @service_visit.location.presence || @vessel.marina %></p>
+    </div>
+    <div class="rounded-md bg-slate-50 p-4">
+      <p class="text-sm font-semibold text-slate-500">Engine hours</p>
+      <p class="mt-1 font-black"><%= @service_visit.engine_hours.presence || "Not recorded" %></p>
+    </div>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-xl font-black">Summary</h2>
+    <p class="leading-7 text-slate-700"><%= @service_visit.summary.presence || "No summary recorded." %></p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-xl font-black">Condition notes</h2>
+    <p class="leading-7 text-slate-700"><%= @service_visit.condition_notes.presence || "No condition notes recorded." %></p>
+  </section>
+
+  <section class="space-y-3">
+    <div class="flex items-center justify-between">
+      <h2 class="text-xl font-black">Issues found</h2>
+      <%= status_chip(@service_visit.follow_up_needed? ? "Follow-up needed" : "No follow-up", tone: @service_visit.follow_up_needed? ? :urgent : :success) %>
+    </div>
+    <% if @issue_notes.any? %>
+      <div class="space-y-3">
+        <% @issue_notes.each do |note| %>
+          <div class="rounded-md border border-red-100 bg-red-50 p-4">
+            <p class="font-bold text-red-900"><%= note.title %></p>
+            <p class="mt-2 text-sm leading-6 text-red-800"><%= note.body %></p>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="leading-7 text-slate-700">No issues were recorded for this vessel.</p>
+    <% end %>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-xl font-black">Follow-up recommendations</h2>
+    <p class="leading-7 text-slate-700"><%= @service_visit.follow_up_notes.presence || "No follow-up recommendations recorded." %></p>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-xl font-black">Photos</h2>
+    <% if @service_visit.photos.attached? %>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <% @service_visit.photos.each do |photo| %>
+          <%= image_tag photo, class: "aspect-[4/3] w-full rounded-md object-cover ring-1 ring-slate-200" %>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="leading-7 text-slate-700">No photos uploaded for this visit.</p>
+    <% end %>
+  </section>
+</article>

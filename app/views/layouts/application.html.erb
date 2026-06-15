@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= content_for(:title) || "Boat Binder" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Boat Binder">
+    <meta name="mobile-web-app-capable" content="yes">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= yield :head %>
+
+    <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
+    <%#= tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
+
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+
+    <%# Includes all stylesheet files in app/assets/stylesheets %>
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body class="bg-slate-50 text-slate-950 antialiased">
+    <div class="min-h-screen pb-24 md:pb-0">
+      <header class="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+          <%= link_to root_path, class: "flex items-center gap-2" do %>
+            <span class="grid h-10 w-10 place-items-center rounded-md bg-cyan-700 text-sm font-black text-white">BB</span>
+            <span>
+              <span class="block text-base font-black leading-tight tracking-normal">Boat Binder</span>
+              <span class="block text-xs font-medium text-slate-500">Hayes Yacht Company</span>
+            </span>
+          <% end %>
+
+          <% if authenticated? %>
+            <div class="hidden items-center gap-2 md:flex">
+              <%= link_to "Dashboard", root_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
+              <%= link_to "Vessels", vessels_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
+              <%= link_to "Reminders", reminders_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
+              <%= link_to "Documents", documents_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
+              <%= button_to "Sign out", session_path, method: :delete, class: "rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white" %>
+            </div>
+          <% end %>
+        </div>
+      </header>
+
+      <% if notice || alert %>
+        <div class="mx-auto max-w-6xl px-4 pt-4">
+          <% if notice %>
+            <div class="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"><%= notice %></div>
+          <% end %>
+          <% if alert %>
+            <div class="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"><%= alert %></div>
+          <% end %>
+        </div>
+      <% end %>
+
+      <main class="mx-auto max-w-6xl px-4 py-5 md:py-8">
+        <%= yield %>
+      </main>
+
+      <% if authenticated? %>
+        <nav class="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white md:hidden">
+          <div class="grid grid-cols-4 text-center text-xs font-semibold text-slate-600">
+            <%= link_to root_path, class: "py-3" do %>
+              <span class="block text-lg">H</span>
+              Home
+            <% end %>
+            <%= link_to vessels_path, class: "py-3" do %>
+              <span class="block text-lg">V</span>
+              Vessels
+            <% end %>
+            <%= link_to reminders_path, class: "py-3" do %>
+              <span class="block text-lg">T</span>
+              Tasks
+            <% end %>
+            <%= link_to documents_path, class: "py-3" do %>
+              <span class="block text-lg">D</span>
+              Docs
+            <% end %>
+          </div>
+        </nav>
+      <% end %>
+    </div>
+  </body>
+</html>

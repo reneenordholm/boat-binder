@@ -1,0 +1,69 @@
+<section class="mx-auto max-w-2xl space-y-5">
+  <div>
+    <%= link_to "Back to #{@vessel.name}", vessel_path(@vessel), class: "inline-flex min-h-10 items-center rounded-md py-2 text-sm font-bold text-cyan-700" %>
+    <p class="mt-3 text-sm font-bold uppercase tracking-normal text-cyan-700">New visit</p>
+    <h1 class="mt-1 text-3xl font-black tracking-normal"><%= @vessel.name %></h1>
+    <p class="mt-2 text-sm text-slate-600"><%= [@vessel.marina, @vessel.slip.presence && "Slip #{@vessel.slip}"].compact.join(" - ") %></p>
+  </div>
+
+  <%= field_error_messages(@service_visit) %>
+
+  <%= form_with model: @service_visit, url: vessel_service_visits_path(@vessel), class: "space-y-5" do |form| %>
+    <section class="space-y-4 rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 class="text-lg font-black">Visit basics</h2>
+      <div>
+        <%= form.label :visit_date, class: "text-sm font-semibold text-slate-700" %>
+        <%= form.date_field :visit_date, class: "mt-2 min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
+      </div>
+      <div>
+        <%= form.label :location, class: "text-sm font-semibold text-slate-700" %>
+        <%= form.text_field :location, class: "mt-2 min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
+      </div>
+      <div>
+        <%= form.label :engine_hours, class: "text-sm font-semibold text-slate-700" %>
+        <%= form.number_field :engine_hours, step: "0.1", inputmode: "decimal", placeholder: "124.5", class: "mt-2 min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
+      </div>
+    </section>
+
+    <section class="space-y-4 rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 class="text-lg font-black">Photos</h2>
+      <%= form.file_field :photos, multiple: true, accept: "image/*", capture: "environment", class: "block min-h-12 w-full rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-base file:mr-3 file:rounded-md file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:font-bold file:text-white" %>
+    </section>
+
+    <section class="space-y-4 rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 class="text-lg font-black">Notes</h2>
+      <div>
+        <%= form.label :summary, "Owner summary", class: "text-sm font-semibold text-slate-700" %>
+        <%= form.text_area :summary, rows: 4, placeholder: "Short client-ready summary of today's check.", class: "mt-2 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
+      </div>
+      <div>
+        <%= form.label :condition_notes, class: "text-sm font-semibold text-slate-700" %>
+        <%= form.text_area :condition_notes, rows: 4, placeholder: "Hull, bilge, shore power, lines, interior, systems.", class: "mt-2 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
+      </div>
+    </section>
+
+    <section class="space-y-4 rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 class="text-lg font-black">Issues and follow-up</h2>
+      <div>
+        <label for="issue_title" class="text-sm font-semibold text-slate-700">Issue title</label>
+        <input type="text" name="issue_title" id="issue_title" placeholder="Optional issue found" class="mt-2 min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base">
+      </div>
+      <div>
+        <label for="issue_body" class="text-sm font-semibold text-slate-700">Issue details</label>
+        <textarea name="issue_body" id="issue_body" rows="4" placeholder="Describe the issue and what should happen next." class="mt-2 w-full rounded-md border border-slate-300 px-4 py-3 text-base"></textarea>
+      </div>
+      <label class="flex min-h-12 items-center gap-3 rounded-md border border-slate-300 px-4 py-3">
+        <%= form.check_box :follow_up_needed, class: "h-5 w-5 rounded border-slate-300 text-cyan-700" %>
+        <span class="text-sm font-bold text-slate-700">Follow-up needed</span>
+      </label>
+      <div>
+        <%= form.label :follow_up_notes, class: "text-sm font-semibold text-slate-700" %>
+        <%= form.text_area :follow_up_notes, rows: 4, placeholder: "Recommendations, parts, vendor, timing.", class: "mt-2 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
+      </div>
+    </section>
+
+    <div class="sticky bottom-16 z-20 -mx-4 bg-slate-50/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:bg-transparent md:px-0">
+      <%= form.submit "Save report", class: "min-h-14 w-full rounded-md bg-cyan-700 px-5 py-4 text-base font-black text-white shadow-lg md:shadow-sm" %>
+    </div>
+  <% end %>
+</section>

@@ -1,0 +1,223 @@
+<section class="space-y-6">
+  <div class="overflow-hidden rounded-md bg-slate-950 text-white shadow-sm">
+    <div class="p-5 md:p-7">
+      <div class="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p class="text-sm font-bold uppercase tracking-normal text-cyan-200"><%= @vessel.account.name %></p>
+          <h1 class="mt-2 text-4xl font-black tracking-normal md:text-5xl"><%= @vessel.name %></h1>
+          <p class="mt-3 max-w-2xl text-base leading-7 text-slate-200"><%= @vessel.display_model.presence || "Vessel profile" %></p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 md:justify-end">
+          <%= status_chip(@vessel.status_label, tone: @vessel.status_tone) %>
+          <%= link_to "Start Visit", new_vessel_service_visit_path(@vessel), class: "inline-flex min-h-12 items-center justify-center rounded-md bg-cyan-500 px-5 py-3 text-base font-black text-slate-950 shadow-sm" %>
+        </div>
+      </div>
+
+      <div class="mt-6 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <div class="rounded-md bg-white/10 p-4 ring-1 ring-white/10">
+          <p class="text-slate-300">Location</p>
+          <p class="mt-1 font-bold"><%= @vessel.location_label %></p>
+        </div>
+        <div class="rounded-md bg-white/10 p-4 ring-1 ring-white/10">
+          <p class="text-slate-300">Owner</p>
+          <p class="mt-1 font-bold"><%= @vessel.owner_name %></p>
+        </div>
+        <div class="rounded-md bg-white/10 p-4 ring-1 ring-white/10">
+          <p class="text-slate-300">Last visit</p>
+          <p class="mt-1 font-bold"><%= short_date(@last_visit&.visit_date) %></p>
+        </div>
+        <div class="rounded-md bg-white/10 p-4 ring-1 ring-white/10">
+          <p class="text-slate-300">Next due</p>
+          <p class="mt-1 font-bold"><%= @next_reminder ? "#{@next_reminder.title} - #{short_date(@next_reminder.due_date)}" : "No open tasks" %></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="flex gap-2 overflow-x-auto pb-1 text-sm font-bold">
+    <a href="#status" class="min-h-10 shrink-0 rounded-md bg-white px-4 py-2.5 text-slate-700 shadow-sm ring-1 ring-slate-200">Status</a>
+    <a href="#profile" class="min-h-10 shrink-0 rounded-md bg-white px-4 py-2.5 text-slate-700 shadow-sm ring-1 ring-slate-200">Profile</a>
+    <a href="#visits" class="min-h-10 shrink-0 rounded-md bg-white px-4 py-2.5 text-slate-700 shadow-sm ring-1 ring-slate-200">Visits</a>
+    <a href="#documents" class="min-h-10 shrink-0 rounded-md bg-white px-4 py-2.5 text-slate-700 shadow-sm ring-1 ring-slate-200">Docs</a>
+    <a href="#notes" class="min-h-10 shrink-0 rounded-md bg-white px-4 py-2.5 text-slate-700 shadow-sm ring-1 ring-slate-200">Notes</a>
+  </nav>
+
+  <section id="status" class="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
+    <div class="space-y-3">
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="text-xl font-black">Priority board</h2>
+        <%= link_to "All reminders", reminders_path, class: "rounded-md px-3 py-2 text-sm font-bold text-cyan-700" %>
+      </div>
+
+      <% if @open_follow_ups.any? || @overdue_reminders.any? %>
+        <div class="space-y-3">
+          <% @open_follow_ups.each do |visit| %>
+            <%= link_to vessel_service_visit_path(@vessel, visit), class: "block rounded-md border border-red-200 bg-red-50 p-4 shadow-sm" do %>
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <p class="font-black text-red-950">Follow-up from <%= short_date(visit.visit_date) %></p>
+                  <p class="mt-2 text-sm leading-6 text-red-800"><%= visit.follow_up_notes.presence || "Follow-up was marked during this visit." %></p>
+                </div>
+                <%= status_chip("Open", tone: :urgent) %>
+              </div>
+            <% end %>
+          <% end %>
+
+          <% @overdue_reminders.each do |reminder| %>
+            <div class="flex items-center justify-between gap-3 rounded-md border border-red-200 bg-white p-4 shadow-sm">
+              <div>
+                <p class="font-black"><%= reminder.title %></p>
+                <p class="mt-1 text-sm text-slate-600"><%= reminder.reminder_type.humanize %> due <%= short_date(reminder.due_date) %></p>
+              </div>
+              <%= button_to "Done", reminder_path(reminder), method: :patch, class: "min-h-11 rounded-md bg-emerald-700 px-4 py-2 text-sm font-bold text-white" %>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="rounded-md border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+          <p class="font-black text-emerald-900">No urgent vessel work</p>
+          <p class="mt-2 text-sm leading-6 text-emerald-800">There are no overdue reminders or open visit follow-ups for this vessel.</p>
+        </div>
+      <% end %>
+    </div>
+
+    <div class="space-y-3">
+      <h2 class="text-xl font-black">Upcoming work</h2>
+      <div class="space-y-3">
+        <% @upcoming_reminders.each do |reminder| %>
+          <div class="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+            <div>
+              <p class="font-bold"><%= reminder.title %></p>
+              <p class="mt-1 text-sm text-slate-600"><%= reminder.reminder_type.humanize %> - <%= short_date(reminder.due_date) %></p>
+            </div>
+            <%= status_chip(reminder.due_date <= Date.current + 7.days ? "Soon" : "Queued", tone: reminder.due_date <= Date.current + 7.days ? :warning : :neutral) %>
+          </div>
+        <% end %>
+        <% if @upcoming_reminders.empty? %>
+          <div class="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+            <p class="font-bold">Nothing scheduled</p>
+            <p class="mt-1 text-sm text-slate-600">Add the next maintenance, registration, insurance, or inspection reminder when ready.</p>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </section>
+
+  <section id="profile" class="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
+    <div class="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+      <h2 class="text-xl font-black">Owner contact</h2>
+      <p class="mt-3 text-lg font-black"><%= @primary_contact&.name || @vessel.account.name %></p>
+      <div class="mt-3 space-y-2 text-sm text-slate-600">
+        <p><span class="font-semibold text-slate-800">Role:</span> <%= @primary_contact&.role.presence || "Client" %></p>
+        <p><span class="font-semibold text-slate-800">Email:</span> <%= @primary_contact&.email.presence || "Not set" %></p>
+        <p><span class="font-semibold text-slate-800">Phone:</span> <%= @primary_contact&.phone.presence || "Not set" %></p>
+      </div>
+    </div>
+
+    <div class="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 class="text-xl font-black">Vessel profile</h2>
+          <p class="mt-2 text-sm leading-6 text-slate-600"><%= @vessel.notes.presence || "No standing vessel notes yet." %></p>
+        </div>
+        <%= status_chip(@vessel.registration_number.present? ? "Registered" : "Needs reg.", tone: @vessel.registration_number.present? ? :success : :warning) %>
+      </div>
+
+      <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="rounded-md bg-slate-50 p-4">
+          <p class="text-sm font-semibold text-slate-500">Make</p>
+          <p class="mt-1 font-black"><%= @vessel.make.presence || "Not set" %></p>
+        </div>
+        <div class="rounded-md bg-slate-50 p-4">
+          <p class="text-sm font-semibold text-slate-500">Model</p>
+          <p class="mt-1 font-black"><%= @vessel.model.presence || "Not set" %></p>
+        </div>
+        <div class="rounded-md bg-slate-50 p-4">
+          <p class="text-sm font-semibold text-slate-500">Length</p>
+          <p class="mt-1 font-black"><%= @vessel.length.present? ? "#{@vessel.length.to_i} ft" : "Not set" %></p>
+        </div>
+        <div class="rounded-md bg-slate-50 p-4">
+          <p class="text-sm font-semibold text-slate-500">Registration</p>
+          <p class="mt-1 font-black"><%= @vessel.registration_number.presence || "Not set" %></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="visits" class="space-y-3">
+    <div class="flex items-center justify-between gap-3">
+      <h2 class="text-xl font-black">Recent service visits</h2>
+      <%= link_to "All visits", vessel_service_visits_path(@vessel), class: "rounded-md px-3 py-2 text-sm font-bold text-cyan-700" %>
+    </div>
+    <div class="grid gap-3 lg:grid-cols-2">
+      <% @service_visits.each do |visit| %>
+        <%= link_to vessel_service_visit_path(@vessel, visit), class: "block rounded-md border border-slate-200 bg-white p-4 shadow-sm" do %>
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="font-black"><%= short_date(visit.visit_date) %></p>
+              <p class="mt-1 text-sm text-slate-600"><%= visit.summary.presence || "Visit report" %></p>
+              <p class="mt-3 text-xs font-semibold text-slate-500">By <%= visit.performed_by_user.email %></p>
+            </div>
+            <% if visit.follow_up_needed? %>
+              <%= status_chip("Follow-up", tone: :urgent) %>
+            <% end %>
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+  </section>
+
+  <section id="documents" class="space-y-3">
+    <div class="flex items-center justify-between gap-3">
+      <h2 class="text-xl font-black">Documents</h2>
+      <%= link_to "Upload", new_vessel_document_path(@vessel), class: "rounded-md px-3 py-2 text-sm font-bold text-cyan-700" %>
+    </div>
+    <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+      <% @documents.each do |document| %>
+        <div class="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="font-bold"><%= document.title %></p>
+              <p class="mt-1 text-sm capitalize text-slate-600"><%= document.document_type.humanize %></p>
+            </div>
+            <%= status_chip(document.file.attached? ? "Filed" : "Missing", tone: document.file.attached? ? :success : :warning) %>
+          </div>
+          <% if document.file.attached? %>
+            <p class="mt-3 text-xs font-semibold text-cyan-700"><%= document.file.filename %></p>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </section>
+
+  <section id="notes" class="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
+    <div>
+      <h2 class="text-xl font-black">Add note</h2>
+      <%= form_with model: @binder_note, url: vessel_binder_notes_path(@vessel), class: "mt-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm" do |form| %>
+        <div class="space-y-3">
+          <%= form.text_field :title, placeholder: "Note title", class: "min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
+          <%= form.select :note_type, BinderNote::NOTE_TYPES.map { |type| [type.humanize, type] }, {}, class: "min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
+          <%= form.text_area :body, rows: 4, placeholder: "Owner preference, maintenance note, operational detail, or issue.", class: "w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
+          <%= form.submit "Add note", class: "min-h-12 w-full rounded-md bg-slate-900 px-4 py-3 font-bold text-white" %>
+        </div>
+      <% end %>
+    </div>
+
+    <div class="space-y-3">
+      <h2 class="text-xl font-black">Binder notes</h2>
+      <% @binder_notes.each do |note| %>
+        <div class="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+          <div class="flex items-start justify-between gap-3">
+            <p class="font-bold"><%= note.title %></p>
+            <%= status_chip(note.note_type.humanize, tone: note.note_type == "issue" ? :urgent : :neutral) %>
+          </div>
+          <p class="mt-2 text-sm leading-6 text-slate-600"><%= note.body %></p>
+        </div>
+      <% end %>
+    </div>
+  </section>
+
+  <div class="fixed inset-x-0 bottom-16 z-30 px-4 md:hidden">
+    <%= link_to "Log Visit", new_vessel_service_visit_path(@vessel), class: "mx-auto flex min-h-14 max-w-6xl items-center justify-center rounded-md bg-cyan-700 px-5 py-4 text-base font-black text-white shadow-lg md:inline-flex md:min-h-12 md:shadow-sm" %>
+  </div>
+</section>

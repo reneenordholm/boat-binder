@@ -1,0 +1,23 @@
+<section class="mx-auto max-w-md pt-10">
+  <div class="mb-8">
+    <p class="text-sm font-bold uppercase tracking-normal text-cyan-700">Captain workspace</p>
+    <h1 class="mt-2 text-3xl font-black tracking-normal text-slate-950">Sign in to Boat Binder</h1>
+    <p class="mt-3 text-sm leading-6 text-slate-600">Demo captain: captain@hayesyacht.test / password</p>
+  </div>
+
+  <%= form_with url: session_url, class: "space-y-5" do |form| %>
+    <div>
+      <%= form.label :email_address, "Email", class: "text-sm font-semibold text-slate-700" %>
+      <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", placeholder: "captain@hayesyacht.test", value: params[:email_address], class: "mt-2 block min-h-12 w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base shadow-sm focus:border-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-700/20" %>
+    </div>
+
+    <div>
+      <%= form.label :password, class: "text-sm font-semibold text-slate-700" %>
+      <%= form.password_field :password, required: true, autocomplete: "current-password", placeholder: "password", maxlength: 72, class: "mt-2 block min-h-12 w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base shadow-sm focus:border-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-700/20" %>
+    </div>
+
+    <%= form.submit "Sign in", class: "min-h-12 w-full rounded-md bg-cyan-700 px-4 py-3 text-base font-bold text-white shadow-sm" %>
+
+    <%= link_to "Forgot password?", new_password_path, class: "block py-2 text-center text-sm font-semibold text-slate-600 underline" %>
+  <% end %>
+</section>

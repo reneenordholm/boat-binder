@@ -1,0 +1,27 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  account: one
+  asset_type: vessel
+  name: MyString
+  make: MyString
+  model: MyString
+  year: 1
+  length: 9.99
+  registration_number: MyString
+  marina: MyString
+  slip: MyString
+  notes: MyText
+
+two:
+  account: two
+  asset_type: vessel
+  name: MyString
+  make: MyString
+  model: MyString
+  year: 1
+  length: 9.99
+  registration_number: MyString
+  marina: MyString
+  slip: MyString
+  notes: MyText

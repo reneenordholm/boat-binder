@@ -1,0 +1,23 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  asset: one
+  performed_by_user: one
+  visit_date: 2026-06-14
+  engine_hours: 9.99
+  location: MyString
+  summary: MyText
+  condition_notes: MyText
+  follow_up_needed: false
+  follow_up_notes: MyText
+
+two:
+  asset: two
+  performed_by_user: two
+  visit_date: 2026-06-14
+  engine_hours: 9.99
+  location: MyString
+  summary: MyText
+  condition_notes: MyText
+  follow_up_needed: false
+  follow_up_notes: MyText
