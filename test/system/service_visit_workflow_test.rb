@@ -20,16 +20,18 @@ class ServiceVisitWorkflowTest < ApplicationSystemTestCase
     click_on @vessel.name
     click_on "Start Visit"
 
-    fill_in "Engine hours", with: "128.7"
+    fill_in "Port Engine Hours", with: "128.7"
+    fill_in "Starboard Engine Hours", with: "129.1"
     fill_in "Owner summary", with: "Routine check complete and vessel is ready for owner use."
-    fill_in "Condition notes", with: "Bilge dry, shore power connected, dock lines secure."
+    fill_in "General condition notes", with: "Bilge dry, shore power connected, dock lines secure."
     check "Follow-up needed"
     fill_in "Follow up notes", with: "Replace forward spring line."
-    click_on "Save report"
+    click_on "Save visit report"
 
     assert_text "Visit report saved."
     assert_text "#{@vessel.name} Visit Report"
     assert_text "128.7"
+    assert_text "129.1"
     assert_text "Replace forward spring line."
   end
 end
