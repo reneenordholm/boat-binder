@@ -1,5 +1,6 @@
 class BinderNotesController < ApplicationController
   before_action :set_vessel
+  before_action :set_binder_note, only: %i[edit update destroy]
 
   def create
     @binder_note = @vessel.binder_notes.new(binder_note_params)
@@ -12,8 +13,18 @@ class BinderNotesController < ApplicationController
     end
   end
 
+  def edit
+  end
+
+  def update
+    if @binder_note.update(binder_note_params)
+      redirect_to vessel_path(@vessel, anchor: "notes"), notice: "Note updated."
+    else
+      render :edit, status: :unprocessable_entity
+    end
+  end
+
   def destroy
-    @binder_note = @vessel.binder_notes.find(params[:id])
     @binder_note.destroy!
     redirect_to vessel_path(@vessel, anchor: "notes"), notice: "Note removed."
   end
@@ -22,6 +33,10 @@ class BinderNotesController < ApplicationController
 
   def set_vessel
     @vessel = Asset.vessels.find_by!(slug: params[:vessel_id])
+  end
+
+  def set_binder_note
+    @binder_note = @vessel.binder_notes.find(params[:id])
   end
 
   def binder_note_params

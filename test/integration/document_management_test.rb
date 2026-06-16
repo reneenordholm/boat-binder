@@ -18,4 +18,33 @@ class DocumentManagementTest < ActionDispatch::IntegrationTest
     assert_redirected_to vessel_path(vessel, anchor: "documents")
     assert_not Document.exists?(document.id)
   end
+
+  test "captain creates a document from main documents page and associates it with a vessel" do
+    sign_in_as
+    vessel = create_vessel
+
+    get new_document_path
+    assert_response :success
+    assert_select "label", "Owner"
+    assert_select "label", "Vessel"
+
+    assert_difference -> { Document.count }, 1 do
+      post documents_path, params: {
+        document: {
+          account_id: vessel.account_id,
+          asset_id: vessel.id,
+          title: "Updated insurance",
+          document_type: "insurance",
+          notes: "Uploaded from library.",
+          file: fixture_file_upload("sample.txt", "text/plain")
+        }
+      }
+    end
+
+    document = Document.find_by!(title: "Updated insurance")
+    assert_equal vessel, document.asset
+    assert_equal vessel.account, document.account
+    assert document.file.attached?
+    assert_redirected_to vessel_path(vessel, anchor: "documents")
+  end
 end

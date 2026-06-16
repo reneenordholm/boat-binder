@@ -3,7 +3,9 @@ class VesselsController < ApplicationController
 
   def index
     @query = params[:q].to_s.strip
+    @include_inactive = params[:include_inactive].present?
     @vessels = Asset.vessels.search(@query).includes(:account, :reminders, :service_visits).ordered
+    @vessels = @vessels.active unless @include_inactive
   end
 
   def show
@@ -23,7 +25,7 @@ class VesselsController < ApplicationController
 
   def new
     @vessel = Asset.new(asset_type: "vessel")
-    @accounts = Account.order(:name)
+    @accounts = Account.active.ordered
   end
 
   def create
@@ -33,20 +35,20 @@ class VesselsController < ApplicationController
     if @vessel.save
       redirect_to vessel_path(@vessel), notice: "Vessel added."
     else
-      @accounts = Account.order(:name)
+      @accounts = Account.active.ordered
       render :new, status: :unprocessable_entity
     end
   end
 
   def edit
-    @accounts = Account.order(:name)
+    @accounts = owner_options_for(@vessel)
   end
 
   def update
     if @vessel.update(vessel_params)
       redirect_to vessel_path(@vessel), notice: "Vessel updated."
     else
-      @accounts = Account.order(:name)
+      @accounts = owner_options_for(@vessel)
       render :edit, status: :unprocessable_entity
     end
   end
@@ -73,7 +75,12 @@ class VesselsController < ApplicationController
       :registration_number,
       :marina,
       :slip,
-      :notes
+      :notes,
+      :active
     )
+  end
+
+  def owner_options_for(vessel)
+    Account.where(active: true).or(Account.where(id: vessel.account_id)).ordered
   end
 end

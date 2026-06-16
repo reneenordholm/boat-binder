@@ -39,6 +39,7 @@
             <div class="hidden items-center gap-2 md:flex">
               <%= link_to "Dashboard", root_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
               <%= link_to "Vessels", vessels_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
+              <%= link_to "Owners", owners_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
               <%= link_to "Reminders", reminders_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
               <%= link_to "Documents", documents_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
               <%= button_to "Sign out", session_path, method: :delete, class: "rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white" %>
@@ -64,7 +65,7 @@
 
       <% if authenticated? %>
         <nav class="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white md:hidden">
-          <div class="grid grid-cols-4 text-center text-xs font-semibold text-slate-600">
+          <div class="grid grid-cols-5 text-center text-xs font-semibold text-slate-600">
             <%= link_to root_path, class: "py-3" do %>
               <span class="block text-lg">H</span>
               Home
@@ -72,6 +73,10 @@
             <%= link_to vessels_path, class: "py-3" do %>
               <span class="block text-lg">V</span>
               Vessels
+            <% end %>
+            <%= link_to owners_path, class: "py-3" do %>
+              <span class="block text-lg">O</span>
+              Owners
             <% end %>
             <%= link_to reminders_path, class: "py-3" do %>
               <span class="block text-lg">T</span>

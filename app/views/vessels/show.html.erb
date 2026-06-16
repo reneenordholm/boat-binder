@@ -22,6 +22,9 @@
         <div class="rounded-md bg-white/10 p-4 ring-1 ring-white/10">
           <p class="text-slate-300">Owner</p>
           <p class="mt-1 font-bold"><%= @vessel.owner_name %></p>
+          <% unless @vessel.account.active? %>
+            <p class="mt-1 text-xs font-bold text-amber-200">Owner inactive</p>
+          <% end %>
         </div>
         <div class="rounded-md bg-white/10 p-4 ring-1 ring-white/10">
           <p class="text-slate-300">Last visit</p>
@@ -49,7 +52,10 @@
         <p class="font-black text-slate-900">Vessel record</p>
         <p class="mt-1 text-sm text-slate-600">Edit vessel details as ownership, slip, or registration changes.</p>
       </div>
-      <%= button_to "Delete vessel", vessel_path(@vessel), method: :delete, form: { data: { turbo_confirm: "Delete #{@vessel.name}? This also removes its visits, reminders, notes, and documents." } }, class: "min-h-11 rounded-md border border-red-200 px-4 py-2 text-sm font-bold text-red-700" %>
+      <div class="flex flex-wrap gap-2">
+        <%= status_chip(@vessel.active? ? "Active" : "Inactive", tone: @vessel.active? ? :success : :neutral) %>
+        <%= button_to "Delete vessel", vessel_path(@vessel), method: :delete, form: { data: { turbo_confirm: "Delete #{@vessel.name}? This also removes its visits, reminders, notes, and documents." } }, class: "min-h-11 rounded-md border border-red-200 px-4 py-2 text-sm font-bold text-red-700" %>
+      </div>
     </div>
   </div>
 
@@ -251,7 +257,10 @@
             </div>
             <div class="flex flex-col items-end gap-2">
               <%= status_chip(note.note_type.humanize, tone: note.note_type == "issue" ? :urgent : (note.attention_due? ? :warning : :neutral)) %>
-              <%= button_to "Delete", vessel_binder_note_path(@vessel, note), method: :delete, form: { data: { turbo_confirm: "Delete this note?" } }, class: "rounded-md px-2 py-1 text-xs font-bold text-red-700" %>
+              <div class="flex gap-2">
+                <%= link_to "Edit", edit_vessel_binder_note_path(@vessel, note), class: "rounded-md px-2 py-1 text-xs font-bold text-cyan-700" %>
+                <%= button_to "Delete", vessel_binder_note_path(@vessel, note), method: :delete, form: { data: { turbo_confirm: "Delete this note?" } }, class: "rounded-md px-2 py-1 text-xs font-bold text-red-700" %>
+              </div>
             </div>
           </div>
           <p class="mt-2 text-sm leading-6 text-slate-600"><%= note.body %></p>

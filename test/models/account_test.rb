@@ -17,4 +17,14 @@ class AccountTest < ActiveSupport::TestCase
     assert_equal [ asset ], account.assets.to_a
     assert_equal [ asset ], account.vessel_assets.to_a
   end
+
+  test "can be inactive without removing vessels" do
+    account = create_account
+    asset = account.assets.create!(name: "Blue Meridian", asset_type: "vessel")
+
+    account.update!(active: false)
+
+    assert_equal "Inactive", account.status_label
+    assert_includes account.assets, asset
+  end
 end

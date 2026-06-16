@@ -18,16 +18,20 @@ class Asset < ApplicationRecord
   validates :length, numericality: { greater_than: 0 }, allow_blank: true
   validates :registration_number, uniqueness: { scope: :account_id }, allow_blank: true
 
+  scope :active, -> { where(active: true) }
+  scope :inactive, -> { where(active: false) }
   scope :vessels, -> { where(asset_type: "vessel") }
   scope :ordered, -> { order(:name) }
   scope :search, ->(query) {
     next all if query.blank?
 
-    normalized_query = "%#{sanitize_sql_like(query.to_s.strip)}%"
-    left_outer_joins(:account).where(
-      "assets.name ILIKE :query OR accounts.name ILIKE :query OR assets.marina ILIKE :query OR assets.slip ILIKE :query",
-      query: normalized_query
-    )
+    query.to_s.squish.split.reduce(left_outer_joins(account: :contacts).distinct) do |scope, term|
+      normalized_query = "%#{sanitize_sql_like(term)}%"
+      scope.where(
+        "assets.name ILIKE :query OR accounts.name ILIKE :query OR contacts.name ILIKE :query OR contacts.email ILIKE :query OR assets.marina ILIKE :query OR assets.slip ILIKE :query",
+        query: normalized_query
+      )
+    end
   }
 
   def to_param
@@ -71,6 +75,7 @@ class Asset < ApplicationRecord
   end
 
   def status_label
+    return "Inactive" unless active?
     return "Needs attention" if overdue_reminders.exists? || open_follow_up_visits.exists?
     return "Scheduled" if next_reminder.present?
 
@@ -78,6 +83,7 @@ class Asset < ApplicationRecord
   end
 
   def status_tone
+    return :neutral unless active?
     return :urgent if overdue_reminders.exists? || open_follow_up_visits.exists?
     return :warning if next_reminder.present?
 

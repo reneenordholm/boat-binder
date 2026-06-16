@@ -4,13 +4,15 @@ Rails.application.routes.draw do
 
   root "dashboard#index"
 
+  resources :owners, controller: :accounts, except: %i[destroy]
+
   resources :vessels do
     resources :service_visits, only: %i[index new create show]
     resources :documents, only: %i[new create destroy]
-    resources :binder_notes, only: %i[create destroy]
+    resources :binder_notes, only: %i[create edit update destroy]
   end
 
-  resources :documents, only: %i[index destroy]
+  resources :documents, only: %i[index new create destroy]
   resources :reminders, only: %i[index new create edit update]
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.

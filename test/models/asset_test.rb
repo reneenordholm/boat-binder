@@ -48,12 +48,25 @@ class AssetTest < ActiveSupport::TestCase
 
   test "searches vessels by name owner marina and slip" do
     account = create_account(name: "Elliott Family")
+    account.contacts.create!(name: "Avery Elliott", email: "avery@example.test", role: "Owner")
     vessel = create_vessel(account: account)
 
     assert_includes Asset.vessels.search("Blue").to_a, vessel
+    assert_includes Asset.vessels.search("Avery").to_a, vessel
     assert_includes Asset.vessels.search("Elliott").to_a, vessel
+    assert_includes Asset.vessels.search("Avery Elliott").to_a, vessel
     assert_includes Asset.vessels.search("Bainbridge").to_a, vessel
+    assert_includes Asset.vessels.search("Bainbridge Marina").to_a, vessel
     assert_includes Asset.vessels.search("C-18").to_a, vessel
+  end
+
+  test "inactive vessels keep history but read as inactive" do
+    vessel = create_vessel
+    vessel.update!(active: false)
+
+    assert_equal "Inactive", vessel.status_label
+    assert_equal :neutral, vessel.status_tone
+    assert_includes Asset.vessels.inactive, vessel
   end
 
   test "owner can have multiple vessels" do

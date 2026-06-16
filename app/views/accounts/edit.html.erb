@@ -1,0 +1,9 @@
+<section class="mx-auto max-w-2xl space-y-5">
+  <div>
+    <%= link_to "Back to #{@account.name}", owner_path(@account), class: "inline-flex min-h-10 items-center rounded-md py-2 text-sm font-bold text-cyan-700" %>
+    <p class="mt-3 text-sm font-bold uppercase tracking-normal text-cyan-700">Clients</p>
+    <h1 class="mt-1 text-3xl font-black tracking-normal">Edit owner</h1>
+  </div>
+
+  <%= render "form", account: @account, contact: @contact %>
+</section>

@@ -29,15 +29,28 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
     get vessels_path(q: "Port Orchard")
     assert_response :success
     assert_includes response.body, "North Star"
+
+    get vessels_path(q: "Orchard")
+    assert_response :success
+    assert_includes response.body, "North Star"
   end
 
-  test "captain updates and deletes a vessel" do
+  test "captain updates active status and deletes a vessel" do
     sign_in_as
     vessel = create_vessel
 
-    patch vessel_path(vessel), params: { asset: { name: "Blue Meridian II", account_id: vessel.account_id } }
+    patch vessel_path(vessel), params: { asset: { name: "Blue Meridian II", account_id: vessel.account_id, active: "0" } }
     assert_redirected_to vessel_path(vessel.reload)
     assert_equal "blue-meridian-ii", vessel.slug
+    assert_not vessel.active?
+
+    get vessels_path
+    assert_response :success
+    assert_not_includes response.body, "Blue Meridian II"
+
+    get vessels_path(include_inactive: "1")
+    assert_response :success
+    assert_includes response.body, "Blue Meridian II"
 
     assert_difference -> { Asset.vessels.count }, -1 do
       delete vessel_path(vessel)
@@ -54,5 +67,26 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
       delete vessel_binder_note_path(vessel, note)
     end
     assert_redirected_to vessel_path(vessel, anchor: "notes")
+  end
+
+  test "captain edits a note" do
+    sign_in_as
+    vessel = create_vessel
+    note = vessel.binder_notes.create!(account: vessel.account, title: "Line chafe", body: "Replace spring line.", note_type: "issue")
+
+    patch vessel_binder_note_path(vessel, note), params: {
+      binder_note: {
+        title: "Replace spring line",
+        body: "Line is chafed at the cleat.",
+        note_type: "maintenance",
+        due_date: Date.tomorrow
+      }
+    }
+
+    assert_redirected_to vessel_path(vessel, anchor: "notes")
+    note.reload
+    assert_equal "Replace spring line", note.title
+    assert_equal "maintenance", note.note_type
+    assert_equal Date.tomorrow, note.due_date
   end
 end

@@ -10,16 +10,19 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_15_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_15_213000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
   create_table "accounts", force: :cascade do |t|
     t.string "account_type", default: "client", null: false
+    t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.string "name", null: false
+    t.text "notes"
     t.datetime "updated_at", null: false
     t.index ["account_type"], name: "index_accounts_on_account_type"
+    t.index ["active"], name: "index_accounts_on_active"
   end
 
   create_table "active_storage_attachments", force: :cascade do |t|
@@ -52,6 +55,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_15_120000) do
 
   create_table "assets", force: :cascade do |t|
     t.bigint "account_id", null: false
+    t.boolean "active", default: true, null: false
     t.string "asset_type", default: "vessel", null: false
     t.datetime "created_at", null: false
     t.decimal "length", precision: 6, scale: 2
@@ -68,6 +72,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_15_120000) do
     t.index ["account_id", "asset_type", "name"], name: "index_assets_on_account_id_and_asset_type_and_name", unique: true
     t.index ["account_id", "registration_number"], name: "index_assets_on_account_id_and_registration_number", unique: true, where: "(registration_number IS NOT NULL)"
     t.index ["account_id"], name: "index_assets_on_account_id"
+    t.index ["active"], name: "index_assets_on_active"
     t.index ["asset_type"], name: "index_assets_on_asset_type"
     t.index ["name"], name: "index_assets_on_name"
     t.index ["slug"], name: "index_assets_on_slug", unique: true

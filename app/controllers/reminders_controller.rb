@@ -45,8 +45,8 @@ class RemindersController < ApplicationController
   end
 
   def set_form_collections
-    @accounts = Account.includes(:assets).order(:name)
-    @vessels = Asset.vessels.includes(:account).ordered
+    @accounts = Account.active.includes(:assets).ordered
+    @vessels = Asset.vessels.active.includes(:account).ordered
   end
 
   def reminder_params

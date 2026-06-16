@@ -35,10 +35,10 @@ admin = User.create!(
 hayes = Account.create!(name: "Hayes Yacht Company", account_type: "internal")
 
 owners = [
-  Account.create!(name: "Elliott Family", account_type: "client"),
-  Account.create!(name: "Harbor North LLC", account_type: "client"),
-  Account.create!(name: "Marisol Trust", account_type: "client"),
-  Account.create!(name: "Carter and Vale", account_type: "client")
+  Account.create!(name: "Elliott Family", account_type: "client", notes: "Owns multiple vessels and prefers concise photo reports."),
+  Account.create!(name: "Harbor North LLC", account_type: "client", notes: "Operations manager approves maintenance work by email."),
+  Account.create!(name: "Marisol Trust", account_type: "client", notes: "Seasonal sailing schedule with spring commissioning checks."),
+  Account.create!(name: "Carter and Vale", account_type: "client", active: false, notes: "Inactive account retained for historical records.")
 ]
 
 owners.each_with_index do |account, index|
@@ -65,7 +65,8 @@ vessels = [
     registration_number: "HY-4821",
     marina: "Bainbridge Marina",
     slip: "C-18",
-    notes: "Owner prefers fuel above half tank and interior dehumidifiers running after each visit."
+    notes: "Owner prefers fuel above half tank and interior dehumidifiers running after each visit.",
+    active: true
   ),
   Asset.create!(
     account: owners[0],
@@ -78,7 +79,8 @@ vessels = [
     registration_number: "HY-3709",
     marina: "Bainbridge Marina",
     slip: "C-21",
-    notes: "Same owner as Blue Meridian. Check cabin heaters during winter visits."
+    notes: "Same owner as Blue Meridian. Check cabin heaters during winter visits.",
+    active: true
   ),
   Asset.create!(
     account: owners[1],
@@ -91,7 +93,8 @@ vessels = [
     registration_number: "HN-3450",
     marina: "Elliott Bay Marina",
     slip: "F-42",
-    notes: "Weekly checks during crab season. Confirm shore power and livewell switches."
+    notes: "Weekly checks during crab season. Confirm shore power and livewell switches.",
+    active: true
   ),
   Asset.create!(
     account: owners[2],
@@ -104,7 +107,8 @@ vessels = [
     registration_number: "MS-4610",
     marina: "Shilshole Bay Marina",
     slip: "J-07",
-    notes: "Canvas covers must be secured before departure. Owner likes photo reports."
+    notes: "Canvas covers must be secured before departure. Owner likes photo reports.",
+    active: true
   ),
   Asset.create!(
     account: owners[3],
@@ -117,7 +121,8 @@ vessels = [
     registration_number: "CV-3108",
     marina: "Port Orchard Marina",
     slip: "B-12",
-    notes: "Monitor battery voltage and freshwater level every visit."
+    notes: "Monitor battery voltage and freshwater level every visit.",
+    active: false
   )
 ]
 

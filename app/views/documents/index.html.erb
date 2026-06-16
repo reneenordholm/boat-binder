@@ -1,7 +1,10 @@
 <section class="space-y-5">
-  <div>
-    <p class="text-sm font-bold uppercase tracking-normal text-cyan-700">Binder library</p>
-    <h1 class="mt-1 text-3xl font-black tracking-normal">Documents</h1>
+  <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div>
+      <p class="text-sm font-bold uppercase tracking-normal text-cyan-700">Binder library</p>
+      <h1 class="mt-1 text-3xl font-black tracking-normal">Documents</h1>
+    </div>
+    <%= link_to "New document", new_document_path, class: "inline-flex min-h-12 items-center justify-center rounded-md bg-cyan-700 px-5 py-3 text-base font-bold text-white shadow-sm" %>
   </div>
 
   <div class="grid gap-3 md:grid-cols-2">
