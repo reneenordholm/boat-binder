@@ -6,6 +6,8 @@ class Asset < ApplicationRecord
   has_many :reminders, dependent: :destroy
   has_many :binder_notes, dependent: :destroy
   has_many :documents, dependent: :destroy
+  has_many :asset_engines, dependent: :destroy
+  has_many :asset_batteries, dependent: :destroy
 
   before_validation :normalize_text_fields
   before_validation :ensure_slug
@@ -74,6 +76,23 @@ class Asset < ApplicationRecord
     [ marina, slip.present? ? "Slip #{slip}" : nil ].compact.join(", ").presence || "Location not set"
   end
 
+  def active_engines
+    asset_engines.active.ordered
+  end
+
+  def active_batteries
+    asset_batteries.active.ordered
+  end
+
+  def ensure_default_engines!
+    default_engines.each do |name, position|
+      asset_engines.find_or_create_by!(name: name) do |engine|
+        engine.position = position
+        engine.active = true
+      end
+    end
+  end
+
   def status_label
     return "Inactive" unless active?
     return "Needs attention" if overdue_reminders.exists? || open_follow_up_visits.exists?
@@ -91,6 +110,10 @@ class Asset < ApplicationRecord
   end
 
   private
+
+  def default_engines
+    { "Port" => 1, "Starboard" => 2 }
+  end
 
   def normalize_text_fields
     %i[name make model marina slip registration_number notes].each do |attribute|

@@ -39,6 +39,15 @@ module ActiveSupport
       create_asset(account: account, asset_type: "vessel")
     end
 
+    def create_battery(asset: create_vessel, name: "House Battery 1")
+      AssetBattery.create!(
+        asset: asset,
+        name: name,
+        location: "Engine room",
+        battery_type: "AGM"
+      )
+    end
+
     def sign_in_as(user = create_user)
       post session_path, params: {
         email_address: user.email_address,

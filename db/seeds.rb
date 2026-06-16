@@ -12,7 +12,12 @@ Session.delete_all
 BinderNote.delete_all
 Reminder.delete_all
 Document.delete_all
+ServiceVisitBatteryCheck.delete_all
+ServiceVisitInspectionCheck.delete_all
+ServiceVisitEngineReading.delete_all
 ServiceVisit.delete_all
+AssetBattery.delete_all
+AssetEngine.delete_all
 Asset.delete_all
 Contact.delete_all
 Account.delete_all
@@ -126,6 +131,27 @@ vessels = [
   )
 ]
 
+vessels.each do |vessel|
+  vessel.ensure_default_engines!
+end
+
+[
+  [ vessels[0], "House Battery 1", "Engine room", "AGM" ],
+  [ vessels[0], "House Battery 2", "Engine room", "AGM" ],
+  [ vessels[0], "Port Start Battery", "Port engine bay", "AGM" ],
+  [ vessels[0], "Starboard Start Battery", "Starboard engine bay", "AGM" ],
+  [ vessels[1], "House Battery", "Aft lazarette", "AGM" ],
+  [ vessels[1], "Start Battery", "Engine compartment", "AGM" ],
+  [ vessels[2], "House Bank", "Console compartment", "Lithium" ],
+  [ vessels[2], "Port Start Battery", "Engine room", "AGM" ],
+  [ vessels[2], "Starboard Start Battery", "Engine room", "AGM" ],
+  [ vessels[3], "House Battery 1", "Salon settee", "AGM" ],
+  [ vessels[3], "Bow Thruster Battery", "Forward berth", "AGM" ],
+  [ vessels[4], "House Battery", "Engine room", "Flooded" ]
+].each do |vessel, name, location, battery_type|
+  AssetBattery.create!(asset: vessel, name: name, location: location, battery_type: battery_type)
+end
+
 png = Base64.decode64(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
 )
@@ -177,6 +203,45 @@ vessels.each_with_index do |vessel, index|
     follow_up_needed: index == 0,
     follow_up_notes: index == 0 ? "Replace forward spring line and re-check dockside chafe protection." : "No owner action required."
   )
+
+  vessel.active_engines.each_with_index do |engine, engine_index|
+    ServiceVisitEngineReading.create!(
+      service_visit: visit,
+      asset_engine: engine,
+      hours: 110 + (index * 18.4) + (engine_index * 0.6)
+    )
+  end
+
+  ServiceVisit::DEFAULT_INSPECTION_LABELS.each_with_index do |label, check_index|
+    checklist_note = case label
+    when "Hull"
+      "Hull and topsides visually clean."
+    when "Bilge"
+      "Bilge dry with no unusual odor."
+    when "Shore power"
+      index == 0 ? "Cord is secure; watch strain relief at pedestal." : "Connected and charging."
+    when "Dock lines"
+      index == 0 ? "Forward spring line shows chafe." : "Lines secure."
+    end
+
+    ServiceVisitInspectionCheck.create!(
+      service_visit: visit,
+      label: label,
+      checked: check_index != 2 || index != 0,
+      notes: checklist_note,
+      position: check_index + 1
+    )
+  end
+
+  vessel.active_batteries.each do |battery|
+    ServiceVisitBatteryCheck.create!(
+      service_visit: visit,
+      asset_battery: battery,
+      checked: true,
+      voltage: 12.62 + (index * 0.04),
+      notes: battery.name.include?("House") ? "Charging normally under shore power." : nil
+    )
+  end
 
   visit.photos.attach(
     io: StringIO.new(png),

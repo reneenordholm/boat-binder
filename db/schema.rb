@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_15_213000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_16_030000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -51,6 +51,33 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_15_213000) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "asset_batteries", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.bigint "asset_id", null: false
+    t.string "battery_type"
+    t.datetime "created_at", null: false
+    t.string "location"
+    t.string "name", null: false
+    t.text "notes"
+    t.datetime "updated_at", null: false
+    t.index ["asset_id", "active"], name: "index_asset_batteries_on_asset_id_and_active"
+    t.index ["asset_id"], name: "index_asset_batteries_on_asset_id"
+    t.index ["name"], name: "index_asset_batteries_on_name"
+  end
+
+  create_table "asset_engines", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.bigint "asset_id", null: false
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.text "notes"
+    t.integer "position", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_asset_engines_on_active"
+    t.index ["asset_id", "position"], name: "index_asset_engines_on_asset_id_and_position"
+    t.index ["asset_id"], name: "index_asset_engines_on_asset_id"
   end
 
   create_table "assets", force: :cascade do |t|
@@ -135,6 +162,44 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_15_213000) do
     t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'completed'::character varying]::text[])", name: "chk_reminders_status"
   end
 
+  create_table "service_visit_battery_checks", force: :cascade do |t|
+    t.bigint "asset_battery_id", null: false
+    t.boolean "checked", default: false, null: false
+    t.datetime "created_at", null: false
+    t.text "notes"
+    t.bigint "service_visit_id", null: false
+    t.datetime "updated_at", null: false
+    t.decimal "voltage", precision: 6, scale: 2
+    t.index ["asset_battery_id"], name: "index_service_visit_battery_checks_on_asset_battery_id"
+    t.index ["service_visit_id", "asset_battery_id"], name: "idx_visit_battery_checks_unique_battery", unique: true
+    t.index ["service_visit_id"], name: "index_service_visit_battery_checks_on_service_visit_id"
+    t.check_constraint "voltage IS NULL OR voltage >= 0::numeric", name: "chk_service_visit_battery_checks_voltage_non_negative"
+  end
+
+  create_table "service_visit_engine_readings", force: :cascade do |t|
+    t.bigint "asset_engine_id", null: false
+    t.datetime "created_at", null: false
+    t.decimal "hours", precision: 8, scale: 1
+    t.bigint "service_visit_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["asset_engine_id"], name: "index_service_visit_engine_readings_on_asset_engine_id"
+    t.index ["service_visit_id", "asset_engine_id"], name: "idx_visit_engine_readings_unique_engine", unique: true
+    t.index ["service_visit_id"], name: "index_service_visit_engine_readings_on_service_visit_id"
+    t.check_constraint "hours IS NULL OR hours >= 0::numeric", name: "chk_service_visit_engine_readings_hours_non_negative"
+  end
+
+  create_table "service_visit_inspection_checks", force: :cascade do |t|
+    t.boolean "checked", default: false, null: false
+    t.datetime "created_at", null: false
+    t.string "label", null: false
+    t.text "notes"
+    t.integer "position", default: 0, null: false
+    t.bigint "service_visit_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["service_visit_id", "position"], name: "idx_visit_inspection_checks_position"
+    t.index ["service_visit_id"], name: "index_service_visit_inspection_checks_on_service_visit_id"
+  end
+
   create_table "service_visits", force: :cascade do |t|
     t.bigint "asset_id", null: false
     t.text "condition_notes"
@@ -173,6 +238,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_15_213000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "asset_batteries", "assets"
+  add_foreign_key "asset_engines", "assets"
   add_foreign_key "assets", "accounts"
   add_foreign_key "binder_notes", "accounts"
   add_foreign_key "binder_notes", "assets"
@@ -180,6 +247,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_15_213000) do
   add_foreign_key "documents", "accounts"
   add_foreign_key "documents", "assets"
   add_foreign_key "reminders", "assets"
+  add_foreign_key "service_visit_battery_checks", "asset_batteries"
+  add_foreign_key "service_visit_battery_checks", "service_visits"
+  add_foreign_key "service_visit_engine_readings", "asset_engines"
+  add_foreign_key "service_visit_engine_readings", "service_visits"
+  add_foreign_key "service_visit_inspection_checks", "service_visits"
   add_foreign_key "service_visits", "assets"
   add_foreign_key "service_visits", "users", column: "performed_by_user_id"
   add_foreign_key "sessions", "users"

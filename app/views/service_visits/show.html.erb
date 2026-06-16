@@ -1,4 +1,4 @@
-<article class="mx-auto max-w-3xl space-y-6 bg-white p-4 shadow-sm ring-1 ring-slate-200 md:p-8">
+<article class="mx-auto max-w-4xl space-y-6 bg-white p-4 shadow-sm ring-1 ring-slate-200 md:p-8">
   <header class="border-b border-slate-200 pb-5">
     <%= link_to "Back to #{@vessel.name}", vessel_path(@vessel), class: "inline-flex min-h-10 items-center rounded-md py-2 text-sm font-bold text-cyan-700" %>
     <p class="mt-4 text-sm font-bold uppercase tracking-normal text-cyan-700">Owner report</p>
@@ -6,19 +6,42 @@
     <p class="mt-2 text-sm text-slate-600"><%= short_date(@service_visit.visit_date) %> by <%= @service_visit.performed_by_user.email %></p>
   </header>
 
-  <section class="grid gap-3 sm:grid-cols-3">
+  <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
     <div class="rounded-md bg-slate-50 p-4">
       <p class="text-sm font-semibold text-slate-500">Vessel</p>
       <p class="mt-1 font-black"><%= @vessel.name %></p>
     </div>
     <div class="rounded-md bg-slate-50 p-4">
-      <p class="text-sm font-semibold text-slate-500">Location</p>
-      <p class="mt-1 font-black"><%= @service_visit.location.presence || @vessel.marina %></p>
+      <p class="text-sm font-semibold text-slate-500">Owner</p>
+      <p class="mt-1 font-black"><%= @vessel.owner_name %></p>
     </div>
     <div class="rounded-md bg-slate-50 p-4">
-      <p class="text-sm font-semibold text-slate-500">Engine hours</p>
-      <p class="mt-1 font-black"><%= @service_visit.engine_hours.presence || "Not recorded" %></p>
+      <p class="text-sm font-semibold text-slate-500">Location</p>
+      <p class="mt-1 font-black"><%= @service_visit.location.presence || @vessel.marina.presence || "Not recorded" %></p>
     </div>
+    <div class="rounded-md bg-slate-50 p-4">
+      <p class="text-sm font-semibold text-slate-500">Captain</p>
+      <p class="mt-1 font-black"><%= @service_visit.performed_by_user.email %></p>
+    </div>
+  </section>
+
+  <section class="space-y-3">
+    <h2 class="text-xl font-black">Engine hours</h2>
+    <% if @service_visit.service_visit_engine_readings.any? %>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <% @service_visit.ordered_engine_readings.each do |reading| %>
+          <div class="rounded-md border border-slate-200 bg-slate-50 p-4">
+            <p class="text-sm font-semibold text-slate-500"><%= reading.display_name %></p>
+            <p class="mt-1 text-2xl font-black"><%= reading.hours.present? ? number_with_precision(reading.hours, precision: 1, strip_insignificant_zeros: true) : "Not recorded" %></p>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="rounded-md border border-slate-200 bg-slate-50 p-4">
+        <p class="text-sm font-semibold text-slate-500">Engine hours</p>
+        <p class="mt-1 text-2xl font-black"><%= @service_visit.engine_hours.presence || "Not recorded" %></p>
+      </div>
+    <% end %>
   </section>
 
   <section class="space-y-3">
@@ -27,8 +50,59 @@
   </section>
 
   <section class="space-y-3">
-    <h2 class="text-xl font-black">Condition notes</h2>
-    <p class="leading-7 text-slate-700"><%= @service_visit.condition_notes.presence || "No condition notes recorded." %></p>
+    <h2 class="text-xl font-black">Inspection checklist</h2>
+    <% if @service_visit.service_visit_inspection_checks.any? %>
+      <div class="grid gap-3 md:grid-cols-2">
+        <% @service_visit.ordered_inspection_checks.each do |check| %>
+          <div class="rounded-md border <%= check.checked? ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50" %> p-4">
+            <div class="flex items-start justify-between gap-3">
+              <p class="font-black"><%= check.label %></p>
+              <%= status_chip(check.checked? ? "Checked" : "Not checked", tone: check.checked? ? :success : :neutral) %>
+            </div>
+            <% if check.notes.present? %>
+              <p class="mt-2 text-sm leading-6 text-slate-700"><%= check.notes %></p>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="leading-7 text-slate-700"><%= @service_visit.condition_notes.presence || "No inspection checklist recorded." %></p>
+    <% end %>
+  </section>
+
+  <% if @service_visit.condition_notes.present? && @service_visit.service_visit_inspection_checks.any? %>
+    <section class="space-y-3">
+      <h2 class="text-xl font-black">General condition notes</h2>
+      <p class="leading-7 text-slate-700"><%= @service_visit.condition_notes %></p>
+    </section>
+  <% end %>
+
+  <section class="space-y-3">
+    <h2 class="text-xl font-black">Battery checks</h2>
+    <% if @service_visit.service_visit_battery_checks.any? %>
+      <div class="grid gap-3 md:grid-cols-2">
+        <% @service_visit.ordered_battery_checks.each do |battery_check| %>
+          <% battery = battery_check.asset_battery %>
+          <div class="rounded-md border <%= battery_check.checked? ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50" %> p-4">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="font-black"><%= battery.name %></p>
+                <p class="mt-1 text-sm text-slate-600"><%= battery.location.presence || "Location not set" %></p>
+              </div>
+              <%= status_chip(battery_check.checked? ? "Checked" : "Not checked", tone: battery_check.checked? ? :success : :neutral) %>
+            </div>
+            <div class="mt-3 space-y-2 text-sm text-slate-700">
+              <p><span class="font-semibold">Voltage:</span> <%= battery_check.voltage.present? ? "#{number_with_precision(battery_check.voltage, precision: 2, strip_insignificant_zeros: true)} V" : "Not recorded" %></p>
+              <% if battery_check.notes.present? %>
+                <p class="leading-6"><%= battery_check.notes %></p>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="leading-7 text-slate-700">No battery checks were recorded for this visit.</p>
+    <% end %>
   </section>
 
   <section class="space-y-3">

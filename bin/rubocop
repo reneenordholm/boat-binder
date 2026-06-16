@@ -2,6 +2,11 @@
 require "rubygems"
 require "bundler/setup"
 
+ruby_version = File.read(File.expand_path("../.ruby-version", __dir__)).match(/(\d+\.\d+)/)&.[](1)
+ENV["RUBOCOP_TARGET_RUBY_VERSION"] ||= ruby_version if ruby_version
+ENV["RUBOCOP_SERVER"] ||= "false"
+ARGV.unshift("--cache-root", File.expand_path("../tmp/rubocop", __dir__)) unless ENV["RUBOCOP_CACHE_ROOT"] || ARGV.include?("--cache-root")
+
 # Explicit RuboCop config increases performance slightly while avoiding config confusion.
 ARGV.unshift("--config", File.expand_path("../.rubocop.yml", __dir__))
 

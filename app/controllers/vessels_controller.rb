@@ -16,6 +16,7 @@ class VesselsController < ApplicationController
     @upcoming_reminders = @vessel.reminders.upcoming.limit(5)
     @completed_reminders = @vessel.reminders.completed.order(updated_at: :desc).limit(3)
     @open_follow_ups = @vessel.open_follow_up_visits.limit(3)
+    @asset_batteries = @vessel.asset_batteries.ordered
     @owner_contact = @vessel.owner_contact
     @primary_contact = @vessel.primary_contact
     @last_visit = @vessel.last_visit

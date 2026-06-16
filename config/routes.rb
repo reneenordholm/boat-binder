@@ -10,6 +10,7 @@ Rails.application.routes.draw do
     resources :service_visits, only: %i[index new create show]
     resources :documents, only: %i[new create destroy]
     resources :binder_notes, only: %i[create edit update destroy]
+    resources :batteries, controller: :asset_batteries, except: %i[index show]
   end
 
   resources :documents, only: %i[index new create destroy]

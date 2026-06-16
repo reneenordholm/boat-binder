@@ -11,11 +11,16 @@ class ServiceVisitsController < ApplicationController
       performed_by_user: Current.user,
       location: default_location
     )
+    @service_visit.build_workflow_defaults
   end
 
   def create
     @service_visit = @vessel.service_visits.new(service_visit_params)
     @service_visit.performed_by_user = Current.user
+    @service_visit.build_workflow_defaults
+    assign_engine_readings
+    assign_inspection_checks
+    assign_battery_checks
 
     if @service_visit.save
       create_issue_note if issue_note_present?
@@ -26,7 +31,13 @@ class ServiceVisitsController < ApplicationController
   end
 
   def show
-    @service_visit = @vessel.service_visits.includes(photos_attachments: :blob).find(params[:id])
+    @service_visit = @vessel.service_visits.includes(
+      :performed_by_user,
+      :service_visit_inspection_checks,
+      service_visit_engine_readings: :asset_engine,
+      service_visit_battery_checks: :asset_battery,
+      photos_attachments: :blob
+    ).find(params[:id])
     @issue_notes = @vessel.binder_notes.where(note_type: "issue").order(created_at: :desc).limit(3)
   end
 
@@ -47,6 +58,36 @@ class ServiceVisitsController < ApplicationController
       :follow_up_notes,
       photos: []
     )
+  end
+
+  def assign_engine_readings
+    submitted_readings = params.dig(:service_visit, :engine_readings) || {}
+
+    @service_visit.service_visit_engine_readings.each do |reading|
+      attrs = submitted_readings[reading.asset_engine_id.to_s] || {}
+      reading.hours = attrs[:hours]
+    end
+  end
+
+  def assign_inspection_checks
+    submitted_checks = params.dig(:service_visit, :inspection_checks) || {}
+
+    @service_visit.ordered_inspection_checks.each_with_index do |check, index|
+      attrs = submitted_checks[index.to_s] || {}
+      check.checked = ActiveModel::Type::Boolean.new.cast(attrs.fetch(:checked, "0"))
+      check.notes = attrs[:notes]
+    end
+  end
+
+  def assign_battery_checks
+    submitted_checks = params.dig(:service_visit, :battery_checks) || {}
+
+    @service_visit.service_visit_battery_checks.each do |check|
+      attrs = submitted_checks[check.asset_battery_id.to_s] || {}
+      check.checked = ActiveModel::Type::Boolean.new.cast(attrs.fetch(:checked, "0"))
+      check.voltage = attrs[:voltage]
+      check.notes = attrs[:notes]
+    end
   end
 
   def issue_note_present?
