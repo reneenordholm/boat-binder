@@ -47,4 +47,22 @@ class DocumentManagementTest < ActionDispatch::IntegrationTest
     assert document.file.attached?
     assert_redirected_to vessel_path(vessel, anchor: "documents")
   end
+
+  test "owner role cannot assign a new document to a vessel" do
+    vessel = create_vessel
+    sign_in_as create_user(email: "owner@example.test", role: "owner")
+
+    assert_no_difference -> { Document.count } do
+      post documents_path, params: {
+        document: {
+          account_id: vessel.account_id,
+          asset_id: vessel.id,
+          title: "Private upload",
+          document_type: "insurance"
+        }
+      }
+    end
+
+    assert_response :forbidden
+  end
 end

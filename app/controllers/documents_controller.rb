@@ -20,8 +20,7 @@ class DocumentsController < ApplicationController
     else
       Document.new(document_params)
     end
-
-    @document.account = @vessel&.account || @document.asset&.account || Account.find_by(id: document_params[:account_id])
+    return unless assign_document_relationships(@document)
 
     if @document.save
       redirect_to after_create_path, notice: "Document uploaded."
@@ -46,12 +45,47 @@ class DocumentsController < ApplicationController
   end
 
   def document_params
-    params.require(:document).permit(:account_id, :asset_id, :title, :document_type, :notes, :file)
+    params.require(:document).permit(:title, :document_type, :notes, :file)
   end
 
   def set_form_collections
     @accounts = Account.active.ordered
     @vessels = Asset.vessels.active.includes(:account).ordered
+  end
+
+  def assign_document_relationships(document)
+    if @vessel
+      document.account = @vessel.account
+      return true
+    end
+
+    return true if document_account_id.blank? && document_asset_id.blank?
+
+    unless can_manage_document_relationships?
+      head :forbidden
+      return false
+    end
+
+    if document_asset_id.present?
+      document.asset = Asset.vessels.find(document_asset_id)
+      document.account = document.asset.account
+    elsif document_account_id.present?
+      document.account = Account.find(document_account_id)
+    end
+
+    true
+  end
+
+  def document_account_id
+    params.require(:document)[:account_id]
+  end
+
+  def document_asset_id
+    params.require(:document)[:asset_id]
+  end
+
+  def can_manage_document_relationships?
+    Current.user&.role.in?(%w[admin captain])
   end
 
   def after_create_path

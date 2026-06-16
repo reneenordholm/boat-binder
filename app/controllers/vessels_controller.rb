@@ -31,6 +31,7 @@ class VesselsController < ApplicationController
   def create
     @vessel = Asset.new(vessel_params)
     @vessel.asset_type = "vessel"
+    return unless assign_vessel_account(@vessel)
 
     if @vessel.save
       redirect_to vessel_path(@vessel), notice: "Vessel added."
@@ -45,6 +46,8 @@ class VesselsController < ApplicationController
   end
 
   def update
+    return unless assign_vessel_account(@vessel)
+
     if @vessel.update(vessel_params)
       redirect_to vessel_path(@vessel), notice: "Vessel updated."
     else
@@ -66,7 +69,6 @@ class VesselsController < ApplicationController
 
   def vessel_params
     params.require(:asset).permit(
-      :account_id,
       :name,
       :make,
       :model,
@@ -82,5 +84,25 @@ class VesselsController < ApplicationController
 
   def owner_options_for(vessel)
     Account.where(active: true).or(Account.where(id: vessel.account_id)).ordered
+  end
+
+  def assign_vessel_account(vessel)
+    return true if vessel_account_id.blank?
+
+    unless can_manage_vessel_accounts?
+      head :forbidden
+      return false
+    end
+
+    vessel.account = Account.find(vessel_account_id)
+    true
+  end
+
+  def vessel_account_id
+    params.require(:asset)[:account_id]
+  end
+
+  def can_manage_vessel_accounts?
+    Current.user&.role.in?(%w[admin captain])
   end
 end

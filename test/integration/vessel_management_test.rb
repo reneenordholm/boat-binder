@@ -58,6 +58,17 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
     assert_redirected_to vessels_path
   end
 
+  test "owner role cannot reassign a vessel account" do
+    vessel = create_vessel
+    other_account = create_account(name: "Other Owner")
+    sign_in_as create_user(email: "owner@example.test", role: "owner")
+
+    patch vessel_path(vessel), params: { asset: { name: vessel.name, account_id: other_account.id } }
+
+    assert_response :forbidden
+    assert_equal vessel.account, vessel.reload.account
+  end
+
   test "captain deletes a due-dated note" do
     sign_in_as
     vessel = create_vessel
