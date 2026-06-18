@@ -1,17 +1,17 @@
 <section class="space-y-6">
-  <div class="overflow-hidden rounded-md bg-slate-950 text-white shadow-sm">
-    <div class="p-5 md:p-7">
+  <div class="overflow-hidden rounded-md bg-[#0B1F35] text-white shadow-sm shadow-[#0B1F35]/15">
+    <div class="p-6 md:p-8">
       <div class="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
         <div>
-          <p class="text-sm font-bold uppercase tracking-normal text-cyan-200"><%= @vessel.account.name %></p>
+          <p class="text-sm font-black uppercase tracking-normal text-[#B9D5DA]"><%= @vessel.account.name %></p>
           <h1 class="mt-2 text-4xl font-black tracking-normal md:text-5xl"><%= @vessel.name %></h1>
-          <p class="mt-3 max-w-2xl text-base leading-7 text-slate-200"><%= @vessel.display_model.presence || "Vessel profile" %></p>
+          <p class="mt-3 max-w-2xl text-base leading-7 text-[#D6E8EB]"><%= @vessel.display_model.presence || "Vessel profile" %></p>
         </div>
         <div class="flex flex-wrap items-center gap-2 md:justify-end">
           <%= status_chip(@vessel.status_label, tone: @vessel.status_tone) %>
           <% if can_manage_records? %>
-            <%= link_to "Start Visit", new_vessel_service_visit_path(@vessel), class: "inline-flex min-h-12 items-center justify-center rounded-md bg-cyan-500 px-5 py-3 text-base font-black text-slate-950 shadow-sm" %>
-            <%= link_to "Edit", edit_vessel_path(@vessel), class: "inline-flex min-h-12 items-center justify-center rounded-md bg-white/10 px-5 py-3 text-base font-bold text-white ring-1 ring-white/20" %>
+            <%= link_to "Start Visit", new_vessel_service_visit_path(@vessel), class: primary_button_class("min-h-12 bg-[#7DAAB3] px-5 py-3 text-base text-[#0B1F35] hover:bg-[#B9D5DA]") %>
+            <%= link_to "Edit", edit_vessel_path(@vessel), class: secondary_button_class("min-h-12 border-white/20 bg-white/10 px-5 py-3 text-base text-white hover:bg-white/20 hover:text-white") %>
           <% end %>
         </div>
       </div>
@@ -41,16 +41,16 @@
   </div>
 
   <nav class="flex gap-2 overflow-x-auto pb-1 text-sm font-bold">
-    <a href="#status" class="min-h-10 shrink-0 rounded-md bg-white px-4 py-2.5 text-slate-700 shadow-sm ring-1 ring-slate-200">Status</a>
-    <a href="#profile" class="min-h-10 shrink-0 rounded-md bg-white px-4 py-2.5 text-slate-700 shadow-sm ring-1 ring-slate-200">Profile</a>
-    <a href="#batteries" class="min-h-10 shrink-0 rounded-md bg-white px-4 py-2.5 text-slate-700 shadow-sm ring-1 ring-slate-200">Batteries</a>
-    <a href="#visits" class="min-h-10 shrink-0 rounded-md bg-white px-4 py-2.5 text-slate-700 shadow-sm ring-1 ring-slate-200">Visits</a>
-    <a href="#documents" class="min-h-10 shrink-0 rounded-md bg-white px-4 py-2.5 text-slate-700 shadow-sm ring-1 ring-slate-200">Docs</a>
-    <a href="#notes" class="min-h-10 shrink-0 rounded-md bg-white px-4 py-2.5 text-slate-700 shadow-sm ring-1 ring-slate-200">Notes</a>
+    <a href="#status" class="min-h-10 shrink-0 rounded-md bg-white px-4 py-2.5 text-[#0B1F35] shadow-sm ring-1 ring-[#E7DED2] transition hover:bg-[#E8F3F5]">Overview</a>
+    <a href="#documents" class="min-h-10 shrink-0 rounded-md bg-white px-4 py-2.5 text-[#0B1F35] shadow-sm ring-1 ring-[#E7DED2] transition hover:bg-[#E8F3F5]">Documents</a>
+    <a href="#notes" class="min-h-10 shrink-0 rounded-md bg-white px-4 py-2.5 text-[#0B1F35] shadow-sm ring-1 ring-[#E7DED2] transition hover:bg-[#E8F3F5]">Notes</a>
+    <a href="#visits" class="min-h-10 shrink-0 rounded-md bg-white px-4 py-2.5 text-[#0B1F35] shadow-sm ring-1 ring-[#E7DED2] transition hover:bg-[#E8F3F5]">Service Visits</a>
+    <a href="#profile" class="min-h-10 shrink-0 rounded-md bg-white px-4 py-2.5 text-[#0B1F35] shadow-sm ring-1 ring-[#E7DED2] transition hover:bg-[#E8F3F5]">Profile</a>
+    <a href="#batteries" class="min-h-10 shrink-0 rounded-md bg-white px-4 py-2.5 text-[#0B1F35] shadow-sm ring-1 ring-[#E7DED2] transition hover:bg-[#E8F3F5]">Batteries</a>
   </nav>
 
   <% if can_manage_records? %>
-    <div class="rounded-md border border-red-100 bg-white p-4 shadow-sm">
+    <div class="<%= app_card_class("p-4") %>">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p class="font-black text-slate-900">Vessel record</p>
@@ -227,69 +227,89 @@
   <section id="visits" class="space-y-3">
     <div class="flex items-center justify-between gap-3">
       <h2 class="text-xl font-black">Recent service visits</h2>
-      <%= link_to "All visits", vessel_service_visits_path(@vessel), class: "rounded-md px-3 py-2 text-sm font-bold text-cyan-700" %>
+      <%= link_to "All visits", vessel_service_visits_path(@vessel), class: subtle_link_class %>
     </div>
-    <div class="grid gap-3 lg:grid-cols-2">
-      <% @service_visits.each do |visit| %>
-        <%= link_to vessel_service_visit_path(@vessel, visit), class: "block rounded-md border border-slate-200 bg-white p-4 shadow-sm" do %>
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <p class="font-black"><%= short_date(visit.visit_date) %></p>
-              <p class="mt-1 text-sm text-slate-600"><%= visit.summary.presence || "Visit report" %></p>
-              <p class="mt-3 text-xs font-semibold text-slate-500">By <%= visit.performed_by_user.email %></p>
+    <% if @service_visits.any? %>
+      <div class="grid gap-3 lg:grid-cols-2">
+        <% @service_visits.each do |visit| %>
+          <%= link_to vessel_service_visit_path(@vessel, visit), class: app_card_class("block p-4 transition hover:border-[#7DAAB3] hover:shadow-md") do %>
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="font-black"><%= short_date(visit.visit_date) %></p>
+                <p class="mt-1 text-sm text-slate-600"><%= visit.summary.presence || "Visit report" %></p>
+                <p class="mt-3 text-xs font-semibold text-slate-500">By <%= visit.performed_by_user.email %></p>
+              </div>
+              <% if visit.follow_up_needed? %>
+                <%= status_chip("Follow-up", tone: :urgent) %>
+              <% end %>
             </div>
-            <% if visit.follow_up_needed? %>
-              <%= status_chip("Follow-up", tone: :urgent) %>
-            <% end %>
-          </div>
+          <% end %>
         <% end %>
-      <% end %>
-    </div>
+      </div>
+    <% else %>
+      <div class="<%= app_card_class("p-6") %>">
+        <p class="text-lg font-black">No service visits recorded yet.</p>
+        <p class="mt-2 text-sm leading-6 text-slate-600">Completed service visits and owner-ready reports will appear here.</p>
+        <% if can_manage_records? %>
+          <%= link_to "Add Service Visit", new_vessel_service_visit_path(@vessel), class: primary_button_class("mt-4") %>
+        <% end %>
+      </div>
+    <% end %>
   </section>
 
   <section id="documents" class="space-y-3">
     <div class="flex items-center justify-between gap-3">
       <h2 class="text-xl font-black">Documents</h2>
       <% if can_manage_records? %>
-        <%= link_to "Upload", new_vessel_document_path(@vessel), class: "rounded-md px-3 py-2 text-sm font-bold text-cyan-700" %>
+        <%= link_to "Upload", new_vessel_document_path(@vessel), class: subtle_link_class %>
       <% end %>
     </div>
-    <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-      <% @documents.each do |document| %>
-        <div class="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <p class="font-bold"><%= document.title %></p>
-              <p class="mt-1 text-sm capitalize text-slate-600"><%= document.document_type.humanize %></p>
+    <% if @documents.any? %>
+      <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <% @documents.each do |document| %>
+          <div class="<%= app_card_class("p-4") %>">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="font-bold"><%= document.title %></p>
+                <p class="mt-1 text-sm capitalize text-slate-600"><%= document.document_type.humanize %></p>
+              </div>
+              <%= status_chip(document.file.attached? ? "Filed" : "Missing", tone: document.file.attached? ? :success : :warning) %>
             </div>
-            <%= status_chip(document.file.attached? ? "Filed" : "Missing", tone: document.file.attached? ? :success : :warning) %>
+            <% if document.file.attached? %>
+              <div class="mt-4 flex flex-wrap gap-2">
+                <%= link_to "Open file", url_for(document.file), class: primary_button_class("min-h-10") %>
+                <%= link_to "Download", rails_blob_path(document.file, disposition: "attachment"), class: secondary_button_class("min-h-10") %>
+                <% if can_manage_records? %>
+                  <%= button_to "Delete", vessel_document_path(@vessel, document), method: :delete, form: { data: { turbo_confirm: "Delete #{document.title}?" } }, class: "min-h-10 rounded-md border border-red-200 px-4 py-2 text-sm font-bold text-red-700", data: { turbo_submits_with: "Deleting..." } %>
+                <% end %>
+              </div>
+              <p class="mt-3 text-xs font-semibold text-[#1E5A7A]"><%= document.file.filename %></p>
+            <% else %>
+              <div class="mt-4">
+                <% if can_manage_records? %>
+                  <%= button_to "Delete", vessel_document_path(@vessel, document), method: :delete, form: { data: { turbo_confirm: "Delete #{document.title}?" } }, class: "min-h-10 rounded-md border border-red-200 px-4 py-2 text-sm font-bold text-red-700", data: { turbo_submits_with: "Deleting..." } %>
+                <% end %>
+              </div>
+            <% end %>
           </div>
-          <% if document.file.attached? %>
-            <div class="mt-4 flex flex-wrap gap-2">
-              <%= link_to "Open file", url_for(document.file), class: "inline-flex min-h-10 items-center rounded-md bg-slate-900 px-4 py-2 text-sm font-bold text-white" %>
-              <%= link_to "Download", rails_blob_path(document.file, disposition: "attachment"), class: "inline-flex min-h-10 items-center rounded-md border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700" %>
-              <% if can_manage_records? %>
-                <%= button_to "Delete", vessel_document_path(@vessel, document), method: :delete, form: { data: { turbo_confirm: "Delete #{document.title}?" } }, class: "min-h-10 rounded-md border border-red-200 px-4 py-2 text-sm font-bold text-red-700", data: { turbo_submits_with: "Deleting..." } %>
-              <% end %>
-            </div>
-            <p class="mt-3 text-xs font-semibold text-cyan-700"><%= document.file.filename %></p>
-          <% else %>
-            <div class="mt-4">
-              <% if can_manage_records? %>
-                <%= button_to "Delete", vessel_document_path(@vessel, document), method: :delete, form: { data: { turbo_confirm: "Delete #{document.title}?" } }, class: "min-h-10 rounded-md border border-red-200 px-4 py-2 text-sm font-bold text-red-700", data: { turbo_submits_with: "Deleting..." } %>
-              <% end %>
-            </div>
-          <% end %>
-        </div>
-      <% end %>
-    </div>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="<%= app_card_class("p-6") %>">
+        <p class="text-lg font-black">No documents uploaded yet.</p>
+        <p class="mt-2 text-sm leading-6 text-slate-600">Registration, insurance, contracts, receipts, and photos will appear here.</p>
+        <% if can_manage_records? %>
+          <%= link_to "Upload Document", new_vessel_document_path(@vessel), class: primary_button_class("mt-4") %>
+        <% end %>
+      </div>
+    <% end %>
   </section>
 
   <section id="notes" class="grid gap-5 <%= "lg:grid-cols-[0.8fr_1.2fr]" if can_manage_records? %>">
     <% if can_manage_records? %>
       <div>
       <h2 class="text-xl font-black">Add note</h2>
-      <%= form_with model: @binder_note, url: vessel_binder_notes_path(@vessel), class: "mt-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm" do |form| %>
+      <%= form_with model: @binder_note, url: vessel_binder_notes_path(@vessel), class: app_card_class("mt-3 p-4") do |form| %>
         <div class="space-y-3">
           <%= form.text_field :title, placeholder: "Note title", class: "min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
           <%= form.select :note_type, BinderNote::NOTE_TYPES.map { |type| [type.humanize, type] }, {}, class: "min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
@@ -298,7 +318,7 @@
             <%= form.date_field :due_date, class: "mt-2 min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
           </div>
           <%= form.text_area :body, rows: 4, placeholder: "Owner preference, maintenance note, operational detail, or issue.", class: "w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
-          <%= form.submit "Add note", class: "min-h-12 w-full rounded-md bg-slate-900 px-4 py-3 font-bold text-white", data: { turbo_submits_with: "Adding..." } %>
+          <%= form.submit "Add note", class: "min-h-12 w-full rounded-md bg-[#0B1F35] px-4 py-3 font-bold text-white", data: { turbo_submits_with: "Adding..." } %>
         </div>
       <% end %>
       </div>
@@ -306,7 +326,8 @@
 
     <div class="space-y-3">
       <h2 class="text-xl font-black">Binder notes</h2>
-      <% @binder_notes.each do |note| %>
+      <% if @binder_notes.any? %>
+        <% @binder_notes.each do |note| %>
         <div class="rounded-md border <%= note.attention_due? ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white" %> p-4 shadow-sm">
           <div class="flex items-start justify-between gap-3">
             <div>
@@ -326,6 +347,12 @@
             </div>
           </div>
           <p class="mt-2 text-sm leading-6 text-slate-600"><%= note.body %></p>
+        </div>
+        <% end %>
+      <% else %>
+        <div class="<%= app_card_class("p-6") %>">
+          <p class="text-lg font-black">No open notes.</p>
+          <p class="mt-2 text-sm leading-6 text-slate-600">Owner preferences, operational notes, and maintenance issues will appear here.</p>
         </div>
       <% end %>
     </div>

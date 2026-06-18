@@ -1,83 +1,146 @@
-<section class="space-y-6">
-  <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-    <div>
-      <p class="text-sm font-bold uppercase tracking-normal text-cyan-700"><%= Date.current.strftime("%A, %b %-d") %></p>
-      <p class="mt-2 text-base font-black text-slate-700">Hello <%= user_first_name(Current.user) %></p>
-      <h1 class="mt-1 text-3xl font-black tracking-normal md:text-4xl">Captain dashboard</h1>
-      <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Your live view of vessels, due items, recent visits, and reports ready for owner follow-up.</p>
-    </div>
-    <%= link_to "View vessels", vessels_path, class: "inline-flex min-h-12 items-center justify-center rounded-md bg-cyan-700 px-5 py-3 text-base font-bold text-white shadow-sm" %>
-  </div>
-
-  <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
-    <div class="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-      <p class="text-sm font-semibold text-slate-500">Vessels</p>
-      <p class="mt-2 text-3xl font-black"><%= @vessels.size %></p>
-    </div>
-    <div class="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-      <p class="text-sm font-semibold text-slate-500">Due tasks</p>
-      <p class="mt-2 text-3xl font-black"><%= @upcoming_reminders.size %></p>
-    </div>
-    <div class="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-      <p class="text-sm font-semibold text-slate-500">Recent visits</p>
-      <p class="mt-2 text-3xl font-black"><%= @recent_service_visits.size %></p>
-    </div>
-    <div class="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-      <p class="text-sm font-semibold text-slate-500">Follow-ups</p>
-      <p class="mt-2 text-3xl font-black"><%= @follow_up_items.size %></p>
-    </div>
-  </div>
-
-  <div class="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-    <section class="space-y-3">
-      <div class="flex items-center justify-between">
-        <h2 class="text-xl font-black">Today's vessel list</h2>
-        <%= link_to "All", vessels_path, class: "rounded-md px-3 py-2 text-sm font-bold text-cyan-700" %>
+<section class="space-y-7">
+  <div class="overflow-hidden rounded-md bg-[#0B1F35] text-white shadow-sm shadow-[#0B1F35]/15">
+    <div class="grid gap-6 p-6 md:grid-cols-[1fr_auto] md:items-end md:p-8">
+      <div>
+        <p class="text-sm font-black uppercase tracking-normal text-[#B9D5DA]"><%= Date.current.strftime("%A, %b %-d") %></p>
+        <p class="mt-3 text-lg font-black text-[#E8F3F5]">Hello <%= user_first_name(Current.user) %></p>
+        <h1 class="mt-2 text-3xl font-black tracking-normal md:text-5xl">Captain dashboard</h1>
+        <p class="mt-3 max-w-2xl text-sm leading-6 text-[#D6E8EB]">A polished command center for vessel status, service priorities, owner records, and documents.</p>
       </div>
-      <div class="space-y-3">
-        <% @vessels.each do |vessel| %>
-          <%= link_to vessel_path(vessel), class: "block rounded-md border border-slate-200 bg-white p-4 shadow-sm" do %>
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <h3 class="text-lg font-black"><%= vessel.name %></h3>
-                <p class="mt-1 text-sm text-slate-600"><%= vessel.account.name %> - <%= [vessel.marina, vessel.slip.presence && "Slip #{vessel.slip}"].compact.join(" - ") %></p>
-              </div>
-              <% if reminder = vessel.next_reminder %>
-                <%= status_chip(short_date(reminder.due_date), tone: reminder.due_date <= Date.current + 7.days ? :urgent : :warning) %>
-              <% end %>
-            </div>
-            <p class="mt-3 text-sm font-medium text-slate-500">Last visit: <%= short_date(vessel.last_visit&.visit_date) %></p>
+
+      <div class="flex flex-wrap gap-2 md:justify-end">
+        <% if can_manage_records? %>
+          <%= link_to "Add Vessel", new_vessel_path, class: primary_button_class("bg-[#7DAAB3] text-[#0B1F35] hover:bg-[#B9D5DA]") %>
+          <%= link_to "Add Owner", new_owner_path, class: secondary_button_class("border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white") if internal_user? %>
+          <%= link_to "Upload Document", new_document_path, class: secondary_button_class("border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white") %>
+          <% if @vessels.first %>
+            <%= link_to "Add Service Visit", new_vessel_service_visit_path(@vessels.first), class: secondary_button_class("border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white") %>
           <% end %>
+        <% else %>
+          <%= link_to "View Vessels", vessels_path, class: primary_button_class("bg-[#7DAAB3] text-[#0B1F35] hover:bg-[#B9D5DA]") %>
+          <%= link_to "View Documents", documents_path, class: secondary_button_class("border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white") %>
         <% end %>
       </div>
+    </div>
+  </div>
+
+  <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="<%= app_card_class("p-5") %>">
+      <p class="text-sm font-black uppercase tracking-normal text-[#1E5A7A]">Active vessels</p>
+      <p class="mt-3 text-4xl font-black"><%= @active_vessels_count %></p>
+      <p class="mt-2 text-sm text-slate-600">Currently visible in your fleet.</p>
+    </div>
+    <div class="<%= app_card_class("p-5") %>">
+      <p class="text-sm font-black uppercase tracking-normal text-[#1E5A7A]">Open notes</p>
+      <p class="mt-3 text-4xl font-black"><%= @open_notes_count %></p>
+      <p class="mt-2 text-sm text-slate-600">Binder notes and issue records.</p>
+    </div>
+    <div class="<%= app_card_class("p-5") %>">
+      <p class="text-sm font-black uppercase tracking-normal text-[#1E5A7A]">Upcoming service</p>
+      <p class="mt-3 text-4xl font-black"><%= @upcoming_service_items_count %></p>
+      <p class="mt-2 text-sm text-slate-600">Pending reminders and service items.</p>
+    </div>
+    <div class="<%= app_card_class("p-5") %>">
+      <p class="text-sm font-black uppercase tracking-normal text-[#1E5A7A]">Documents</p>
+      <p class="mt-3 text-4xl font-black"><%= @documents_count %></p>
+      <p class="mt-2 text-sm text-slate-600">Uploaded owner and vessel files.</p>
+    </div>
+  </div>
+
+  <div class="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
+    <section class="space-y-3">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <h2 class="text-2xl font-black tracking-normal">Today's vessel list</h2>
+          <p class="mt-1 text-sm text-slate-600">Fast scan of active vessels and their next item.</p>
+        </div>
+        <%= link_to "All vessels", vessels_path, class: subtle_link_class %>
+      </div>
+
+      <% if @vessels.any? %>
+        <div class="grid gap-4 lg:grid-cols-2">
+          <% @vessels.each do |vessel| %>
+            <%= link_to vessel_path(vessel), class: app_card_class("block p-5 transition hover:-translate-y-0.5 hover:border-[#7DAAB3] hover:shadow-md") do %>
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <h3 class="text-xl font-black"><%= vessel.name %></h3>
+                  <p class="mt-1 text-sm font-semibold text-[#1E5A7A]"><%= vessel.account.name %></p>
+                  <p class="mt-2 text-sm text-slate-600"><%= vessel.location_label %></p>
+                </div>
+                <%= status_chip(vessel.status_label, tone: vessel.status_tone) %>
+              </div>
+              <div class="mt-5 grid grid-cols-2 gap-3 border-t border-[#F0E8DE] pt-4 text-sm">
+                <div>
+                  <p class="font-semibold text-slate-500">Upcoming</p>
+                  <p class="mt-1 font-black"><%= vessel.next_reminder&.title || "Clear" %></p>
+                </div>
+                <div>
+                  <p class="font-semibold text-slate-500">Last visit</p>
+                  <p class="mt-1 font-black"><%= short_date(vessel.last_visit&.visit_date) %></p>
+                </div>
+              </div>
+            <% end %>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="<%= app_card_class("p-6") %>">
+          <p class="text-lg font-black">No vessels yet.</p>
+          <p class="mt-2 text-sm leading-6 text-slate-600">Add a vessel to begin tracking service visits, documents, notes, and reminders.</p>
+          <% if can_manage_records? %>
+            <%= link_to "Add Vessel", new_vessel_path, class: primary_button_class("mt-4") %>
+          <% end %>
+        </div>
+      <% end %>
     </section>
 
     <aside class="space-y-5">
       <section>
-        <h2 class="mb-3 text-xl font-black">Upcoming reminders</h2>
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <h2 class="text-2xl font-black tracking-normal">Upcoming service</h2>
+          <%= link_to "Tasks", reminders_path, class: subtle_link_class %>
+        </div>
         <div class="space-y-3">
           <% @upcoming_reminders.each do |reminder| %>
-            <div class="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="<%= app_card_class("p-4") %>">
               <div class="flex items-start justify-between gap-3">
                 <div>
-                  <p class="font-bold"><%= reminder.title %></p>
+                  <p class="font-black"><%= reminder.title %></p>
                   <p class="mt-1 text-sm text-slate-600"><%= reminder.asset.name %></p>
                 </div>
                 <%= status_chip(short_date(reminder.due_date), tone: reminder.due_date <= Date.current ? :urgent : :warning) %>
               </div>
             </div>
           <% end %>
+          <% if @upcoming_reminders.empty? %>
+            <div class="<%= app_card_class("p-4") %>">
+              <p class="font-black">No upcoming service items.</p>
+              <p class="mt-1 text-sm text-slate-600">Everything visible to you is clear for now.</p>
+            </div>
+          <% end %>
         </div>
       </section>
 
-      <section>
-        <h2 class="mb-3 text-xl font-black">Recent reports</h2>
+      <section id="recent-service-visits">
+        <h2 class="mb-3 text-2xl font-black tracking-normal">Recent service visits</h2>
         <div class="space-y-3">
           <% @recent_service_visits.each do |visit| %>
-            <%= link_to vessel_service_visit_path(visit.asset, visit), class: "block rounded-md border border-slate-200 bg-white p-4 shadow-sm" do %>
-              <p class="font-bold"><%= visit.asset.name %></p>
-              <p class="mt-1 text-sm text-slate-600"><%= short_date(visit.visit_date) %> by <%= visit.performed_by_user.email %></p>
+            <%= link_to vessel_service_visit_path(visit.asset, visit), class: app_card_class("block p-4 transition hover:border-[#7DAAB3] hover:shadow-md") do %>
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <p class="font-black"><%= visit.asset.name %></p>
+                  <p class="mt-1 text-sm text-slate-600"><%= short_date(visit.visit_date) %> by <%= visit.performed_by_user.email %></p>
+                </div>
+                <% if visit.follow_up_needed? %>
+                  <%= status_chip("Follow-up", tone: :urgent) %>
+                <% end %>
+              </div>
             <% end %>
+          <% end %>
+          <% if @recent_service_visits.empty? %>
+            <div class="<%= app_card_class("p-4") %>">
+              <p class="font-black">No service visits recorded yet.</p>
+              <p class="mt-1 text-sm text-slate-600">Completed visits will appear here for quick review.</p>
+            </div>
           <% end %>
         </div>
       </section>

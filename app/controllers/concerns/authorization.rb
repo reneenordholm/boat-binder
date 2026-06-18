@@ -80,4 +80,10 @@ module Authorization
 
     ServiceVisit.joins(:asset).where(assets: { account_id: current_user.active_account_ids })
   end
+
+  def scoped_binder_notes
+    return BinderNote.all if internal_user?
+
+    BinderNote.where(account_id: current_user.active_account_ids)
+  end
 end
