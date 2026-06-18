@@ -39,6 +39,9 @@ gem "thruster", require: false
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
 gem "image_processing", "~> 1.2"
 
+# Store Active Storage uploads in Amazon S3
+gem "aws-sdk-s3", require: false
+
 # Keep mail's IMAP dependency on a patched release.
 gem "net-imap", ">= 0.6.4.1"
 
