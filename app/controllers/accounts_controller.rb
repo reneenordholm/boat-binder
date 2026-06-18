@@ -1,4 +1,5 @@
 class AccountsController < ApplicationController
+  before_action :require_internal!
   before_action :require_write_access!, only: %i[new create edit update]
   before_action :set_account, only: %i[show edit update]
 

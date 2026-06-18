@@ -140,6 +140,151 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  test "login page does not expose demo credentials" do
+    get new_session_path
+
+    assert_response :success
+    assert_not_includes response.body, "Demo captain:"
+    assert_not_includes response.body, "captain@hayesyacht.test / password"
+  end
+
+  test "header and dashboard show logged in user role and greeting" do
+    setup_access_records
+
+    sign_in_as @admin
+    get root_path
+
+    assert_response :success
+    assert_includes response.body, "Admin User"
+    assert_includes response.body, "Admin"
+    assert_includes response.body, "Hello Admin"
+    assert_select "a", text: "Owners"
+
+    sign_in_as @captain
+    get root_path
+
+    assert_response :success
+    assert_includes response.body, "Captain User"
+    assert_includes response.body, "Captain"
+    assert_includes response.body, "Hello Captain"
+    assert_select "a", text: "Owners"
+
+    sign_in_as @owner_a_user
+    get root_path
+
+    assert_response :success
+    assert_includes response.body, "Avery Elliott"
+    assert_includes response.body, "Owner"
+    assert_includes response.body, "Hello Avery"
+    assert_select "a", text: "Owners", count: 0
+  end
+
+  test "admin and captain user forms show global account access as checked and disabled" do
+    setup_access_records
+    sign_in_as @admin
+
+    get edit_admin_user_path(@admin)
+    assert_response :success
+    assert_includes response.body, "Admin and captain users have access to all vessels automatically."
+    assert_select "input[name='user[account_ids][]'][checked='checked'][disabled='disabled']", count: 2
+
+    get edit_admin_user_path(@captain)
+    assert_response :success
+    assert_includes response.body, "Admin and captain users have access to all vessels automatically."
+    assert_select "input[name='user[account_ids][]'][checked='checked'][disabled='disabled']", count: 2
+  end
+
+  test "owner user form shows only explicit account access as editable" do
+    setup_access_records
+    sign_in_as @admin
+
+    get edit_admin_user_path(@owner_a_user)
+
+    assert_response :success
+    assert_select "input[name='user[account_ids][]'][disabled='disabled']", count: 0
+    assert_select "input[name='user[account_ids][]'][checked='checked']", count: 1
+    assert_select "input[name='user[account_ids][]'][value='#{@owner_a_account.id}'][checked='checked']"
+    assert_select "input[name='user[account_ids][]'][value='#{@owner_b_account.id}'][checked='checked']", count: 0
+  end
+
+  test "internal user account access params do not create memberships" do
+    setup_access_records
+    sign_in_as @admin
+
+    assert_no_difference -> { @captain.account_memberships.reload.count } do
+      patch admin_user_path(@captain), params: {
+        user: {
+          name: @captain.name,
+          email_address: @captain.email_address,
+          role: "captain",
+          active: "1",
+          password: "",
+          password_confirmation: "",
+          account_ids: [ @owner_a_account.id, @owner_b_account.id ]
+        }
+      }
+    end
+
+    assert_redirected_to admin_users_path
+    assert_empty @captain.account_memberships.active
+  end
+
+  test "admin updates owner account access with blank password fields" do
+    setup_access_records
+    sign_in_as @admin
+
+    patch admin_user_path(@owner_a_user), params: {
+      user: {
+        name: "Avery Elliott",
+        email_address: @owner_a_user.email_address,
+        role: "owner",
+        active: "1",
+        password: "",
+        password_confirmation: "",
+        account_ids: [ @owner_b_account.id ]
+      }
+    }
+
+    assert_redirected_to admin_users_path
+    assert_equal [ @owner_b_account.id ], @owner_a_user.account_memberships.reload.active.pluck(:account_id)
+
+    delete session_path
+    sign_in_as @owner_a_user
+    assert_redirected_to root_path
+  end
+
+  test "admin edit user renders password mismatch validation without syncing memberships" do
+    setup_access_records
+    sign_in_as @admin
+
+    patch admin_user_path(@owner_a_user), params: {
+      user: {
+        name: "Avery Elliott",
+        email_address: @owner_a_user.email_address,
+        role: "owner",
+        active: "1",
+        password: "new-password",
+        password_confirmation: "different-password",
+        account_ids: [ @owner_b_account.id ]
+      }
+    }
+
+    assert_response :unprocessable_entity
+    assert_includes response.body, "Password confirmation"
+    assert_equal [ @owner_a_account.id ], @owner_a_user.account_memberships.reload.active.pluck(:account_id)
+  end
+
+  test "owner cannot access owner account routes directly" do
+    setup_access_records
+    sign_in_as @owner_a_user
+
+    get owners_path
+    assert_response :forbidden
+
+    get owner_path(@owner_a_account)
+    assert_response :forbidden
+  end
+
   private
 
   def setup_access_records
