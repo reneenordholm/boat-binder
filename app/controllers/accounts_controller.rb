@@ -1,9 +1,10 @@
 class AccountsController < ApplicationController
+  before_action :require_write_access!, only: %i[new create edit update]
   before_action :set_account, only: %i[show edit update]
 
   def index
     @include_inactive = params[:include_inactive].present?
-    @accounts = Account.includes(:contacts, :assets).ordered
+    @accounts = scoped_accounts.includes(:contacts, :assets).ordered
     @accounts = @accounts.active unless @include_inactive
   end
 
@@ -50,7 +51,7 @@ class AccountsController < ApplicationController
   private
 
   def set_account
-    @account = Account.find(params[:id])
+    @account = scoped_accounts.find(params[:id])
   end
 
   def account_params

@@ -16,7 +16,7 @@
       <%= form.password_field :password, required: true, autocomplete: "current-password", placeholder: "password", maxlength: 72, class: "mt-2 block min-h-12 w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-base shadow-sm focus:border-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-700/20" %>
     </div>
 
-    <%= form.submit "Sign in", class: "min-h-12 w-full rounded-md bg-cyan-700 px-4 py-3 text-base font-bold text-white shadow-sm" %>
+    <%= form.submit "Sign in", class: "min-h-12 w-full rounded-md bg-cyan-700 px-4 py-3 text-base font-bold text-white shadow-sm", data: { turbo_submits_with: "Signing in..." } %>
 
     <%= link_to "Forgot password?", new_password_path, class: "block py-2 text-center text-sm font-semibold text-slate-600 underline" %>
   <% end %>

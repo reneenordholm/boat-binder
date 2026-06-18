@@ -1,0 +1,16 @@
+class AccountMembership < ApplicationRecord
+  ACCESS_LEVELS = %w[read_only editor].freeze
+
+  belongs_to :user
+  belongs_to :account
+
+  validates :access_level, inclusion: { in: ACCESS_LEVELS }
+  validates :account_id, uniqueness: { scope: :user_id }
+
+  scope :active, -> { where(active: true) }
+  scope :ordered, -> { joins(:account).order("accounts.name") }
+
+  def status_label
+    active? ? "Active" : "Inactive"
+  end
+end

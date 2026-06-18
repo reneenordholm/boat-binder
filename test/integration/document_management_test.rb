@@ -48,6 +48,38 @@ class DocumentManagementTest < ActionDispatch::IntegrationTest
     assert_redirected_to vessel_path(vessel, anchor: "documents")
   end
 
+  test "captain cannot create a document with mismatched owner and vessel" do
+    sign_in_as
+    account = create_account(name: "Elliott Family")
+    other_vessel = create_vessel(account: create_account(name: "Harbor North"))
+
+    assert_no_difference -> { Document.count } do
+      post documents_path, params: {
+        document: {
+          account_id: account.id,
+          asset_id: other_vessel.id,
+          title: "Mismatched insurance",
+          document_type: "insurance",
+          file: fixture_file_upload("sample.txt", "text/plain")
+        }
+      }
+    end
+
+    assert_response :unprocessable_entity
+    assert_includes response.body, "must belong to the selected owner"
+  end
+
+  test "new document form filters vessels and disables double submit" do
+    sign_in_as
+    vessel = create_vessel
+
+    get new_document_path
+
+    assert_response :success
+    assert_select "select[data-dependent-vessels-target='asset'] option[data-account-id='#{vessel.account_id}'][value='#{vessel.id}']", vessel.name
+    assert_select "input[type=submit][data-turbo-submits-with=?]", "Uploading..."
+  end
+
   test "owner role cannot assign a new document to a vessel" do
     vessel = create_vessel
     sign_in_as create_user(email: "owner@example.test", role: "owner")

@@ -1,9 +1,10 @@
 class DocumentsController < ApplicationController
+  before_action :require_write_access!, except: %i[index]
   before_action :set_vessel, only: %i[new create]
   before_action :set_form_collections, only: %i[new create]
 
   def index
-    @documents = Document.includes(:account, :asset).order(created_at: :desc)
+    @documents = scoped_documents.includes(:account, :asset).order(created_at: :desc)
   end
 
   def new
@@ -30,7 +31,7 @@ class DocumentsController < ApplicationController
   end
 
   def destroy
-    @document = Document.find(params[:id])
+    @document = scoped_documents.find(params[:id])
     fallback_vessel = @document.asset if @document.asset&.asset_type == "vessel"
     @document.file.purge if @document.file.attached?
     @document.destroy!
@@ -41,7 +42,7 @@ class DocumentsController < ApplicationController
   private
 
   def set_vessel
-    @vessel = Asset.vessels.find_by!(slug: params[:vessel_id]) if params[:vessel_id].present?
+    @vessel = scoped_vessels.find_by!(slug: params[:vessel_id]) if params[:vessel_id].present?
   end
 
   def document_params
@@ -49,8 +50,8 @@ class DocumentsController < ApplicationController
   end
 
   def set_form_collections
-    @accounts = Account.active.ordered
-    @vessels = Asset.vessels.active.includes(:account).ordered
+    @accounts = scoped_accounts.active.ordered
+    @vessels = scoped_vessels.active.includes(:account).ordered
   end
 
   def assign_document_relationships(document)
@@ -67,10 +68,16 @@ class DocumentsController < ApplicationController
     end
 
     if document_asset_id.present?
-      document.asset = Asset.vessels.find(document_asset_id)
+      document.asset = scoped_vessels.find(document_asset_id)
+      if document_account_id.present? && document_account_id.to_i != document.asset.account_id
+        document.errors.add(:asset, "must belong to the selected owner")
+        render :new, status: :unprocessable_entity
+        return false
+      end
+
       document.account = document.asset.account
     elsif document_account_id.present?
-      document.account = Account.find(document_account_id)
+      document.account = scoped_accounts.find(document_account_id)
     end
 
     true
@@ -85,7 +92,7 @@ class DocumentsController < ApplicationController
   end
 
   def can_manage_document_relationships?
-    Current.user&.role.in?(%w[admin captain])
+    can_manage_records?
   end
 
   def after_create_path

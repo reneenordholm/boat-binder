@@ -1,4 +1,5 @@
 class ServiceVisitsController < ApplicationController
+  before_action :require_write_access!, only: %i[new create]
   before_action :set_vessel
 
   def index
@@ -44,7 +45,7 @@ class ServiceVisitsController < ApplicationController
   private
 
   def set_vessel
-    @vessel = Asset.vessels.find_by!(slug: params[:vessel_id])
+    @vessel = scoped_vessels.find_by!(slug: params[:vessel_id])
   end
 
   def service_visit_params

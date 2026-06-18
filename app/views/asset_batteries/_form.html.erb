@@ -24,5 +24,5 @@
     </div>
   </section>
 
-  <%= form.submit @battery.persisted? ? "Save battery" : "Add battery", class: "min-h-14 w-full rounded-md bg-cyan-700 px-5 py-4 text-base font-black text-white shadow-sm" %>
+  <%= form.submit @battery.persisted? ? "Save battery" : "Add battery", class: "min-h-14 w-full rounded-md bg-cyan-700 px-5 py-4 text-base font-black text-white shadow-sm", data: { turbo_submits_with: "Saving..." } %>
 <% end %>

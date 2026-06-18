@@ -126,7 +126,7 @@
     </section>
 
     <div class="sticky bottom-16 z-20 -mx-4 bg-slate-50/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:bg-transparent md:px-0">
-      <%= form.submit "Save visit report", class: "min-h-14 w-full rounded-md bg-cyan-700 px-5 py-4 text-base font-black text-white shadow-lg md:shadow-sm" %>
+      <%= form.submit "Save visit report", class: "min-h-14 w-full rounded-md bg-cyan-700 px-5 py-4 text-base font-black text-white shadow-lg md:shadow-sm", data: { turbo_submits_with: "Saving..." } %>
     </div>
   <% end %>
 </section>

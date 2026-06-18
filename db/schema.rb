@@ -10,9 +10,23 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_16_030000) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_17_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "account_memberships", force: :cascade do |t|
+    t.string "access_level", default: "read_only", null: false
+    t.bigint "account_id", null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["account_id"], name: "index_account_memberships_on_account_id"
+    t.index ["active"], name: "index_account_memberships_on_active"
+    t.index ["user_id", "account_id"], name: "index_account_memberships_on_user_id_and_account_id", unique: true
+    t.index ["user_id"], name: "index_account_memberships_on_user_id"
+    t.check_constraint "access_level::text = ANY (ARRAY['read_only'::character varying, 'editor'::character varying]::text[])", name: "chk_account_memberships_access_level"
+  end
 
   create_table "accounts", force: :cascade do |t|
     t.string "account_type", default: "client", null: false
@@ -228,14 +242,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_16_030000) do
   end
 
   create_table "users", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.string "email_address", null: false
+    t.string "name"
     t.string "password_digest", null: false
     t.string "role", default: "captain", null: false
     t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_users_on_active"
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
   end
 
+  add_foreign_key "account_memberships", "accounts"
+  add_foreign_key "account_memberships", "users"
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "asset_batteries", "assets"

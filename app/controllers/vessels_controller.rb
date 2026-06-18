@@ -1,10 +1,11 @@
 class VesselsController < ApplicationController
+  before_action :require_write_access!, only: %i[new create edit update destroy]
   before_action :set_vessel, only: %i[show edit update destroy]
 
   def index
     @query = params[:q].to_s.strip
     @include_inactive = params[:include_inactive].present?
-    @vessels = Asset.vessels.search(@query).includes(:account, :reminders, :service_visits).ordered
+    @vessels = scoped_vessels.search(@query).includes(:account, :reminders, :service_visits).ordered
     @vessels = @vessels.active unless @include_inactive
   end
 
@@ -26,7 +27,7 @@ class VesselsController < ApplicationController
 
   def new
     @vessel = Asset.new(asset_type: "vessel")
-    @accounts = Account.active.ordered
+    @accounts = scoped_accounts.active.ordered
   end
 
   def create
@@ -37,7 +38,7 @@ class VesselsController < ApplicationController
     if @vessel.save
       redirect_to vessel_path(@vessel), notice: "Vessel added."
     else
-      @accounts = Account.active.ordered
+      @accounts = scoped_accounts.active.ordered
       render :new, status: :unprocessable_entity
     end
   end
@@ -65,7 +66,7 @@ class VesselsController < ApplicationController
   private
 
   def set_vessel
-    @vessel = Asset.vessels.includes(account: :contacts).find_by!(slug: params[:id])
+    @vessel = scoped_vessels.includes(account: :contacts).find_by!(slug: params[:id])
   end
 
   def vessel_params
@@ -84,7 +85,7 @@ class VesselsController < ApplicationController
   end
 
   def owner_options_for(vessel)
-    Account.where(active: true).or(Account.where(id: vessel.account_id)).ordered
+    scoped_accounts.where(active: true).or(scoped_accounts.where(id: vessel.account_id)).ordered
   end
 
   def assign_vessel_account(vessel)
@@ -95,7 +96,7 @@ class VesselsController < ApplicationController
       return false
     end
 
-    vessel.account = Account.find(vessel_account_id)
+    vessel.account = scoped_accounts.find(vessel_account_id)
     true
   end
 
@@ -104,6 +105,6 @@ class VesselsController < ApplicationController
   end
 
   def can_manage_vessel_accounts?
-    Current.user&.role.in?(%w[admin captain])
+    can_manage_records?
   end
 end

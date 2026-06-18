@@ -9,8 +9,10 @@
         </div>
         <div class="flex flex-wrap items-center gap-2 md:justify-end">
           <%= status_chip(@vessel.status_label, tone: @vessel.status_tone) %>
-          <%= link_to "Start Visit", new_vessel_service_visit_path(@vessel), class: "inline-flex min-h-12 items-center justify-center rounded-md bg-cyan-500 px-5 py-3 text-base font-black text-slate-950 shadow-sm" %>
-          <%= link_to "Edit", edit_vessel_path(@vessel), class: "inline-flex min-h-12 items-center justify-center rounded-md bg-white/10 px-5 py-3 text-base font-bold text-white ring-1 ring-white/20" %>
+          <% if can_manage_records? %>
+            <%= link_to "Start Visit", new_vessel_service_visit_path(@vessel), class: "inline-flex min-h-12 items-center justify-center rounded-md bg-cyan-500 px-5 py-3 text-base font-black text-slate-950 shadow-sm" %>
+            <%= link_to "Edit", edit_vessel_path(@vessel), class: "inline-flex min-h-12 items-center justify-center rounded-md bg-white/10 px-5 py-3 text-base font-bold text-white ring-1 ring-white/20" %>
+          <% end %>
         </div>
       </div>
 
@@ -47,18 +49,20 @@
     <a href="#notes" class="min-h-10 shrink-0 rounded-md bg-white px-4 py-2.5 text-slate-700 shadow-sm ring-1 ring-slate-200">Notes</a>
   </nav>
 
-  <div class="rounded-md border border-red-100 bg-white p-4 shadow-sm">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <p class="font-black text-slate-900">Vessel record</p>
-        <p class="mt-1 text-sm text-slate-600">Edit vessel details as ownership, slip, or registration changes.</p>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <%= status_chip(@vessel.active? ? "Active" : "Inactive", tone: @vessel.active? ? :success : :neutral) %>
-        <%= button_to "Delete vessel", vessel_path(@vessel), method: :delete, form: { data: { turbo_confirm: "Delete #{@vessel.name}? This also removes its visits, reminders, notes, and documents." } }, class: "min-h-11 rounded-md border border-red-200 px-4 py-2 text-sm font-bold text-red-700" %>
+  <% if can_manage_records? %>
+    <div class="rounded-md border border-red-100 bg-white p-4 shadow-sm">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p class="font-black text-slate-900">Vessel record</p>
+          <p class="mt-1 text-sm text-slate-600">Edit vessel details as ownership, slip, or registration changes.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <%= status_chip(@vessel.active? ? "Active" : "Inactive", tone: @vessel.active? ? :success : :neutral) %>
+          <%= button_to "Delete vessel", vessel_path(@vessel), method: :delete, form: { data: { turbo_confirm: "Delete #{@vessel.name}? This also removes its visits, reminders, notes, and documents." } }, class: "min-h-11 rounded-md border border-red-200 px-4 py-2 text-sm font-bold text-red-700", data: { turbo_submits_with: "Deleting..." } %>
+        </div>
       </div>
     </div>
-  </div>
+  <% end %>
 
   <section id="status" class="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
     <div class="space-y-3">
@@ -87,7 +91,9 @@
                 <p class="font-black"><%= reminder.title %></p>
                 <p class="mt-1 text-sm text-slate-600"><%= reminder.reminder_type.humanize %> due <%= short_date(reminder.due_date) %></p>
               </div>
-              <%= button_to "Done", reminder_path(reminder), method: :patch, class: "min-h-11 rounded-md bg-emerald-700 px-4 py-2 text-sm font-bold text-white" %>
+              <% if can_manage_records? %>
+                <%= button_to "Done", reminder_path(reminder), method: :patch, class: "min-h-11 rounded-md bg-emerald-700 px-4 py-2 text-sm font-bold text-white", data: { turbo_submits_with: "Saving..." } %>
+              <% end %>
             </div>
           <% end %>
         </div>
@@ -179,7 +185,9 @@
         <h2 class="text-xl font-black">Batteries</h2>
         <p class="mt-1 text-sm text-slate-600">Track the vessel batteries that should be checked during service visits.</p>
       </div>
-      <%= link_to "Add battery", new_vessel_battery_path(@vessel), class: "shrink-0 rounded-md px-3 py-2 text-sm font-bold text-cyan-700" %>
+      <% if can_manage_records? %>
+        <%= link_to "Add battery", new_vessel_battery_path(@vessel), class: "shrink-0 rounded-md px-3 py-2 text-sm font-bold text-cyan-700" %>
+      <% end %>
     </div>
 
     <% if @asset_batteries.any? %>
@@ -199,10 +207,12 @@
                 <p class="leading-6"><%= battery.notes %></p>
               <% end %>
             </div>
-            <div class="mt-4 flex flex-wrap gap-2">
-              <%= link_to "Edit", edit_vessel_battery_path(@vessel, battery), class: "inline-flex min-h-10 items-center rounded-md bg-slate-900 px-4 py-2 text-sm font-bold text-white" %>
-              <%= button_to "Delete", vessel_battery_path(@vessel, battery), method: :delete, form: { data: { turbo_confirm: "Delete #{battery.name}?" } }, class: "min-h-10 rounded-md border border-red-200 px-4 py-2 text-sm font-bold text-red-700" %>
-            </div>
+            <% if can_manage_records? %>
+              <div class="mt-4 flex flex-wrap gap-2">
+                <%= link_to "Edit", edit_vessel_battery_path(@vessel, battery), class: "inline-flex min-h-10 items-center rounded-md bg-slate-900 px-4 py-2 text-sm font-bold text-white" %>
+                <%= button_to "Delete", vessel_battery_path(@vessel, battery), method: :delete, form: { data: { turbo_confirm: "Delete #{battery.name}?" } }, class: "min-h-10 rounded-md border border-red-200 px-4 py-2 text-sm font-bold text-red-700", data: { turbo_submits_with: "Deleting..." } %>
+              </div>
+            <% end %>
           </div>
         <% end %>
       </div>
@@ -240,7 +250,9 @@
   <section id="documents" class="space-y-3">
     <div class="flex items-center justify-between gap-3">
       <h2 class="text-xl font-black">Documents</h2>
-      <%= link_to "Upload", new_vessel_document_path(@vessel), class: "rounded-md px-3 py-2 text-sm font-bold text-cyan-700" %>
+      <% if can_manage_records? %>
+        <%= link_to "Upload", new_vessel_document_path(@vessel), class: "rounded-md px-3 py-2 text-sm font-bold text-cyan-700" %>
+      <% end %>
     </div>
     <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
       <% @documents.each do |document| %>
@@ -256,12 +268,16 @@
             <div class="mt-4 flex flex-wrap gap-2">
               <%= link_to "Open file", url_for(document.file), class: "inline-flex min-h-10 items-center rounded-md bg-slate-900 px-4 py-2 text-sm font-bold text-white" %>
               <%= link_to "Download", rails_blob_path(document.file, disposition: "attachment"), class: "inline-flex min-h-10 items-center rounded-md border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700" %>
-              <%= button_to "Delete", vessel_document_path(@vessel, document), method: :delete, form: { data: { turbo_confirm: "Delete #{document.title}?" } }, class: "min-h-10 rounded-md border border-red-200 px-4 py-2 text-sm font-bold text-red-700" %>
+              <% if can_manage_records? %>
+                <%= button_to "Delete", vessel_document_path(@vessel, document), method: :delete, form: { data: { turbo_confirm: "Delete #{document.title}?" } }, class: "min-h-10 rounded-md border border-red-200 px-4 py-2 text-sm font-bold text-red-700", data: { turbo_submits_with: "Deleting..." } %>
+              <% end %>
             </div>
             <p class="mt-3 text-xs font-semibold text-cyan-700"><%= document.file.filename %></p>
           <% else %>
             <div class="mt-4">
-              <%= button_to "Delete", vessel_document_path(@vessel, document), method: :delete, form: { data: { turbo_confirm: "Delete #{document.title}?" } }, class: "min-h-10 rounded-md border border-red-200 px-4 py-2 text-sm font-bold text-red-700" %>
+              <% if can_manage_records? %>
+                <%= button_to "Delete", vessel_document_path(@vessel, document), method: :delete, form: { data: { turbo_confirm: "Delete #{document.title}?" } }, class: "min-h-10 rounded-md border border-red-200 px-4 py-2 text-sm font-bold text-red-700", data: { turbo_submits_with: "Deleting..." } %>
+              <% end %>
             </div>
           <% end %>
         </div>
@@ -269,8 +285,9 @@
     </div>
   </section>
 
-  <section id="notes" class="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
-    <div>
+  <section id="notes" class="grid gap-5 <%= "lg:grid-cols-[0.8fr_1.2fr]" if can_manage_records? %>">
+    <% if can_manage_records? %>
+      <div>
       <h2 class="text-xl font-black">Add note</h2>
       <%= form_with model: @binder_note, url: vessel_binder_notes_path(@vessel), class: "mt-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm" do |form| %>
         <div class="space-y-3">
@@ -281,10 +298,11 @@
             <%= form.date_field :due_date, class: "mt-2 min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
           </div>
           <%= form.text_area :body, rows: 4, placeholder: "Owner preference, maintenance note, operational detail, or issue.", class: "w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
-          <%= form.submit "Add note", class: "min-h-12 w-full rounded-md bg-slate-900 px-4 py-3 font-bold text-white" %>
+          <%= form.submit "Add note", class: "min-h-12 w-full rounded-md bg-slate-900 px-4 py-3 font-bold text-white", data: { turbo_submits_with: "Adding..." } %>
         </div>
       <% end %>
-    </div>
+      </div>
+    <% end %>
 
     <div class="space-y-3">
       <h2 class="text-xl font-black">Binder notes</h2>
@@ -299,10 +317,12 @@
             </div>
             <div class="flex flex-col items-end gap-2">
               <%= status_chip(note.note_type.humanize, tone: note.note_type == "issue" ? :urgent : (note.attention_due? ? :warning : :neutral)) %>
-              <div class="flex gap-2">
-                <%= link_to "Edit", edit_vessel_binder_note_path(@vessel, note), class: "rounded-md px-2 py-1 text-xs font-bold text-cyan-700" %>
-                <%= button_to "Delete", vessel_binder_note_path(@vessel, note), method: :delete, form: { data: { turbo_confirm: "Delete this note?" } }, class: "rounded-md px-2 py-1 text-xs font-bold text-red-700" %>
-              </div>
+              <% if can_manage_records? %>
+                <div class="flex gap-2">
+                  <%= link_to "Edit", edit_vessel_binder_note_path(@vessel, note), class: "rounded-md px-2 py-1 text-xs font-bold text-cyan-700" %>
+                  <%= button_to "Delete", vessel_binder_note_path(@vessel, note), method: :delete, form: { data: { turbo_confirm: "Delete this note?" } }, class: "rounded-md px-2 py-1 text-xs font-bold text-red-700", data: { turbo_submits_with: "Deleting..." } %>
+                </div>
+              <% end %>
             </div>
           </div>
           <p class="mt-2 text-sm leading-6 text-slate-600"><%= note.body %></p>
@@ -311,7 +331,9 @@
     </div>
   </section>
 
-  <div class="fixed inset-x-0 bottom-16 z-30 px-4 md:hidden">
-    <%= link_to "Log Visit", new_vessel_service_visit_path(@vessel), class: "mx-auto flex min-h-14 max-w-6xl items-center justify-center rounded-md bg-cyan-700 px-5 py-4 text-base font-black text-white shadow-lg md:inline-flex md:min-h-12 md:shadow-sm" %>
-  </div>
+  <% if can_manage_records? %>
+    <div class="fixed inset-x-0 bottom-16 z-30 px-4 md:hidden">
+      <%= link_to "Log Visit", new_vessel_service_visit_path(@vessel), class: "mx-auto flex min-h-14 max-w-6xl items-center justify-center rounded-md bg-cyan-700 px-5 py-4 text-base font-black text-white shadow-lg md:inline-flex md:min-h-12 md:shadow-sm" %>
+    </div>
+  <% end %>
 </section>
