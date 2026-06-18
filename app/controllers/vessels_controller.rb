@@ -5,7 +5,7 @@ class VesselsController < ApplicationController
   def index
     @query = params[:q].to_s.strip
     @include_inactive = params[:include_inactive].present?
-    @vessels = scoped_vessels.search(@query).includes(:account, :reminders, :service_visits).ordered
+    @vessels = scoped_vessels.search(@query).includes(:account, :reminders, :service_visits, :documents, :binder_notes).ordered
     @vessels = @vessels.active unless @include_inactive
   end
 
