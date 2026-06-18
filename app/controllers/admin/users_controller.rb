@@ -16,8 +16,7 @@ module Admin
       @user = User.new(user_params)
       assign_admin_managed_user_attributes(@user)
 
-      if @user.save
-        sync_account_memberships
+      if save_user_with_memberships
         redirect_to admin_users_path, notice: "User added."
       else
         render :new, status: :unprocessable_entity
@@ -31,8 +30,7 @@ module Admin
       @user.assign_attributes(user_params)
       assign_admin_managed_user_attributes(@user)
 
-      if @user.save
-        sync_account_memberships
+      if save_user_with_memberships
         redirect_to admin_users_path, notice: "User updated."
       else
         render :edit, status: :unprocessable_entity
@@ -51,7 +49,9 @@ module Admin
 
     def user_params
       permitted = params.require(:user).permit(:name, :email_address, :password, :password_confirmation)
-      permitted.except!(:password, :password_confirmation) if permitted[:password].blank? && @user&.persisted?
+      if @user&.persisted? && permitted[:password].blank? && permitted[:password_confirmation].blank?
+        permitted = permitted.except(:password, :password_confirmation)
+      end
       permitted
     end
 
@@ -62,17 +62,42 @@ module Admin
       user.active = ActiveModel::Type::Boolean.new.cast(params.dig(:user, :active))
     end
 
-    def sync_account_memberships
-      selected_account_ids = Array(params.dig(:user, :account_ids)).compact_blank.map(&:to_i)
+    def save_user_with_memberships
+      saved = false
 
-      Account.where(id: selected_account_ids).find_each do |account|
+      User.transaction do
+        if @user.save && sync_account_memberships
+          saved = true
+        else
+          raise ActiveRecord::Rollback
+        end
+      end
+
+      saved
+    end
+
+    def sync_account_memberships
+      unless @user.owner?
+        @user.account_memberships.active.update_all(active: false, updated_at: Time.current)
+        return true
+      end
+
+      selected_account_ids = Array(params.dig(:user, :account_ids)).compact_blank.map(&:to_i)
+      selected_accounts = Account.client.where(id: selected_account_ids)
+
+      selected_accounts.find_each do |account|
         membership = @user.account_memberships.find_or_initialize_by(account: account)
         membership.access_level = "read_only"
         membership.active = true
-        membership.save!
+        unless membership.save
+          @user.errors.add(:base, "Account access could not be updated.")
+          membership.errors.full_messages.each { |message| @user.errors.add(:base, message) }
+          return false
+        end
       end
 
       @user.account_memberships.where.not(account_id: selected_account_ids).update_all(active: false, updated_at: Time.current)
+      true
     end
   end
 end

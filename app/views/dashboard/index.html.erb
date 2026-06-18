@@ -2,6 +2,7 @@
   <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
     <div>
       <p class="text-sm font-bold uppercase tracking-normal text-cyan-700"><%= Date.current.strftime("%A, %b %-d") %></p>
+      <p class="mt-2 text-base font-black text-slate-700">Hello <%= user_first_name(Current.user) %></p>
       <h1 class="mt-1 text-3xl font-black tracking-normal md:text-4xl">Captain dashboard</h1>
       <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Your live view of vessels, due items, recent visits, and reports ready for owner follow-up.</p>
     </div>

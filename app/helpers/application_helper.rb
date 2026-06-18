@@ -21,4 +21,16 @@ module ApplicationHelper
 
     tag.span text, class: "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold #{colors.fetch(tone)}"
   end
+
+  def user_display_name(user)
+    user.name.presence || user.email_address
+  end
+
+  def user_first_name(user)
+    user.name.to_s.split.first.presence || user.email_address.to_s.split("@").first.presence || "there"
+  end
+
+  def role_label(user)
+    user.role.to_s.humanize
+  end
 end

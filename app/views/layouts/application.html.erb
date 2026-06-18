@@ -36,16 +36,24 @@
           <% end %>
 
           <% if authenticated? %>
-            <div class="hidden items-center gap-2 md:flex">
-              <%= link_to "Dashboard", root_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
-              <%= link_to "Vessels", vessels_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
-              <%= link_to "Owners", owners_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
-              <%= link_to "Reminders", reminders_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
-              <%= link_to "Documents", documents_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
-              <% if admin_user? %>
-                <%= link_to "Users", admin_users_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
-              <% end %>
-              <%= button_to "Sign out", session_path, method: :delete, class: "rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white" %>
+            <div class="ml-auto flex items-center gap-3">
+              <div class="text-right">
+                <p class="max-w-32 truncate text-xs font-black text-slate-800 sm:max-w-44"><%= user_display_name(Current.user) %></p>
+                <span class="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[0.7rem] font-bold text-slate-600"><%= role_label(Current.user) %></span>
+              </div>
+              <div class="hidden items-center gap-2 md:flex">
+                <%= link_to "Dashboard", root_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
+                <%= link_to "Vessels", vessels_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
+                <% if internal_user? %>
+                  <%= link_to "Owners", owners_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
+                <% end %>
+                <%= link_to "Reminders", reminders_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
+                <%= link_to "Documents", documents_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
+                <% if admin_user? %>
+                  <%= link_to "Users", admin_users_path, class: "rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100" %>
+                <% end %>
+                <%= button_to "Sign out", session_path, method: :delete, class: "rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white" %>
+              </div>
             </div>
           <% end %>
         </div>
@@ -68,7 +76,7 @@
 
       <% if authenticated? %>
         <nav class="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white md:hidden">
-          <div class="grid grid-cols-5 text-center text-xs font-semibold text-slate-600">
+          <div class="grid <%= internal_user? ? "grid-cols-5" : "grid-cols-4" %> text-center text-xs font-semibold text-slate-600">
             <%= link_to root_path, class: "py-3" do %>
               <span class="block text-lg">H</span>
               Home
@@ -77,9 +85,11 @@
               <span class="block text-lg">V</span>
               Vessels
             <% end %>
-            <%= link_to owners_path, class: "py-3" do %>
-              <span class="block text-lg">O</span>
-              Owners
+            <% if internal_user? %>
+              <%= link_to owners_path, class: "py-3" do %>
+                <span class="block text-lg">O</span>
+                Owners
+              <% end %>
             <% end %>
             <%= link_to reminders_path, class: "py-3" do %>
               <span class="block text-lg">T</span>
