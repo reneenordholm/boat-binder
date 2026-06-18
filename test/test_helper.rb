@@ -12,20 +12,31 @@ module ActiveSupport
       Account.create!(name: name, account_type: account_type)
     end
 
-    def create_user(email: "captain@example.test", role: "captain")
+    def create_user(email: "captain@example.test", role: "captain", name: nil, active: true)
       User.create!(
+        name: name,
         email_address: email,
         password: "password",
         password_confirmation: "password",
-        role: role
+        role: role,
+        active: active
       )
     end
 
-    def create_asset(account: create_account, asset_type: "vessel")
+    def create_account_membership(user:, account:, access_level: "read_only", active: true)
+      AccountMembership.create!(
+        user: user,
+        account: account,
+        access_level: access_level,
+        active: active
+      )
+    end
+
+    def create_asset(account: create_account, asset_type: "vessel", name: "Blue Meridian")
       Asset.create!(
         account: account,
         asset_type: asset_type,
-        name: "Blue Meridian",
+        name: name,
         make: "Sabre",
         model: "48 Salon Express",
         year: 2020,
@@ -35,8 +46,8 @@ module ActiveSupport
       )
     end
 
-    def create_vessel(account: create_account)
-      create_asset(account: account, asset_type: "vessel")
+    def create_vessel(account: create_account, name: "Blue Meridian")
+      create_asset(account: account, asset_type: "vessel", name: name)
     end
 
     def create_battery(asset: create_vessel, name: "House Battery 1")

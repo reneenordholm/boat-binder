@@ -10,7 +10,9 @@
       </div>
       <div class="flex flex-wrap gap-2">
         <%= status_chip(@account.status_label, tone: @account.status_tone) %>
-        <%= link_to "Edit", edit_owner_path(@account), class: "inline-flex min-h-12 items-center justify-center rounded-md bg-cyan-500 px-5 py-3 text-base font-black text-slate-950 shadow-sm" %>
+        <% if can_manage_records? %>
+          <%= link_to "Edit", edit_owner_path(@account), class: "inline-flex min-h-12 items-center justify-center rounded-md bg-cyan-500 px-5 py-3 text-base font-black text-slate-950 shadow-sm" %>
+        <% end %>
       </div>
     </div>
   </div>
@@ -32,7 +34,9 @@
     <section class="space-y-3">
       <div class="flex items-center justify-between gap-3">
         <h2 class="text-xl font-black">Vessels</h2>
-        <%= link_to "Add vessel", new_vessel_path, class: "rounded-md px-3 py-2 text-sm font-bold text-cyan-700" %>
+        <% if can_manage_records? %>
+          <%= link_to "Add vessel", new_vessel_path, class: "rounded-md px-3 py-2 text-sm font-bold text-cyan-700" %>
+        <% end %>
       </div>
       <div class="grid gap-3 md:grid-cols-2">
         <% @vessels.each do |vessel| %>

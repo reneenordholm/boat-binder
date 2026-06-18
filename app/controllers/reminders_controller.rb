@@ -1,9 +1,10 @@
 class RemindersController < ApplicationController
+  before_action :require_write_access!, except: %i[index]
   before_action :set_reminder, only: %i[edit update]
   before_action :set_form_collections, only: %i[new create edit update]
 
   def index
-    @reminders = Reminder.includes(asset: :account).order(status: :desc, due_date: :asc)
+    @reminders = scoped_reminders.includes(asset: :account).order(status: :desc, due_date: :asc)
   end
 
   def new
@@ -12,6 +13,7 @@ class RemindersController < ApplicationController
 
   def create
     @reminder = Reminder.new(reminder_params)
+    assign_reminder_asset(@reminder)
     @reminder.status = "pending" if @reminder.status.blank?
 
     if @reminder.save
@@ -31,25 +33,33 @@ class RemindersController < ApplicationController
     elsif params[:status_action] == "reopen"
       @reminder.reopen!
       redirect_back fallback_location: reminders_path, notice: "Reminder reopened."
-    elsif @reminder.update(reminder_params)
-      redirect_to reminders_path, notice: "Reminder updated."
     else
-      render :edit, status: :unprocessable_entity
+      assign_reminder_asset(@reminder)
+      if @reminder.update(reminder_params)
+        redirect_to reminders_path, notice: "Reminder updated."
+      else
+        render :edit, status: :unprocessable_entity
+      end
     end
   end
 
   private
 
   def set_reminder
-    @reminder = Reminder.find(params[:id])
+    @reminder = scoped_reminders.find(params[:id])
   end
 
   def set_form_collections
-    @accounts = Account.active.includes(:assets).ordered
-    @vessels = Asset.vessels.active.includes(:account).ordered
+    @accounts = scoped_accounts.active.includes(:assets).ordered
+    @vessels = scoped_vessels.active.includes(:account).ordered
   end
 
   def reminder_params
-    params.require(:reminder).permit(:asset_id, :title, :due_date, :reminder_type, :status)
+    params.require(:reminder).permit(:title, :due_date, :reminder_type, :status)
+  end
+
+  def assign_reminder_asset(reminder)
+    asset_id = params.require(:reminder)[:asset_id]
+    reminder.asset = scoped_vessels.find(asset_id) if asset_id.present?
   end
 end

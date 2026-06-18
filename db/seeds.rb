@@ -9,6 +9,7 @@ require "stringio"
 end
 
 Session.delete_all
+AccountMembership.delete_all
 BinderNote.delete_all
 Reminder.delete_all
 Document.delete_all
@@ -24,17 +25,21 @@ Account.delete_all
 User.delete_all
 
 captain = User.create!(
+  name: "Hayes Captain",
   email_address: "captain@hayesyacht.test",
   password: "password",
   password_confirmation: "password",
-  role: "captain"
+  role: "captain",
+  active: true
 )
 
 admin = User.create!(
+  name: "Hayes Admin",
   email_address: "admin@hayesyacht.test",
   password: "password",
   password_confirmation: "password",
-  role: "admin"
+  role: "admin",
+  active: true
 )
 
 hayes = Account.create!(name: "Hayes Yacht Company", account_type: "internal")
@@ -55,6 +60,37 @@ owners.each_with_index do |account, index|
     role: "Owner"
   )
 end
+
+owner_users = [
+  User.create!(
+    name: "Avery Elliott",
+    email_address: "avery@owner.test",
+    password: "password",
+    password_confirmation: "password",
+    role: "owner",
+    active: true
+  ),
+  User.create!(
+    name: "Noah Pierce",
+    email_address: "noah@owner.test",
+    password: "password",
+    password_confirmation: "password",
+    role: "owner",
+    active: true
+  ),
+  User.create!(
+    name: "Maya Solano",
+    email_address: "maya@owner.test",
+    password: "password",
+    password_confirmation: "password",
+    role: "owner",
+    active: true
+  )
+]
+
+AccountMembership.create!(user: owner_users[0], account: owners[0], access_level: "read_only", active: true)
+AccountMembership.create!(user: owner_users[1], account: owners[1], access_level: "read_only", active: true)
+AccountMembership.create!(user: owner_users[2], account: owners[2], access_level: "read_only", active: true)
 
 Contact.create!(account: hayes, name: "Hayes Dispatch", email: "ops@hayesyacht.test", phone: "555-0140", role: "Captain")
 
@@ -278,4 +314,4 @@ vessels.each_with_index do |vessel, index|
   end
 end
 
-puts "Seeded #{User.count} users, #{Asset.vessels.count} vessels, #{ServiceVisit.count} visits, #{Reminder.count} reminders."
+puts "Seeded #{User.count} users, #{AccountMembership.count} memberships, #{Asset.vessels.count} vessels, #{ServiceVisit.count} visits, #{Reminder.count} reminders."

@@ -4,7 +4,9 @@
       <p class="text-sm font-bold uppercase tracking-normal text-cyan-700">Clients</p>
       <h1 class="mt-1 text-3xl font-black tracking-normal">Owners</h1>
     </div>
-    <%= link_to "Add owner", new_owner_path, class: "inline-flex min-h-12 items-center justify-center rounded-md bg-cyan-700 px-5 py-3 text-base font-bold text-white shadow-sm" %>
+    <% if can_manage_records? %>
+      <%= link_to "Add owner", new_owner_path, class: "inline-flex min-h-12 items-center justify-center rounded-md bg-cyan-700 px-5 py-3 text-base font-bold text-white shadow-sm" %>
+    <% end %>
   </div>
 
   <div class="rounded-md border border-slate-200 bg-white p-3 shadow-sm">
@@ -12,7 +14,7 @@
       <label class="flex min-h-11 items-center gap-3 rounded-md px-2 py-2">
         <%= form.check_box :include_inactive, { checked: @include_inactive, class: "h-5 w-5 rounded border-slate-300 text-cyan-700" }, "1", nil %>
         <span class="text-sm font-bold text-slate-700">Include inactive owners</span>
-        <%= form.submit "Apply", class: "ml-auto rounded-md bg-slate-900 px-4 py-2 text-sm font-bold text-white" %>
+        <%= form.submit "Apply", class: "ml-auto rounded-md bg-slate-900 px-4 py-2 text-sm font-bold text-white", data: { turbo_submits_with: "Applying..." } %>
       </label>
     <% end %>
   </div>

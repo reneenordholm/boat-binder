@@ -1,6 +1,8 @@
 class Account < ApplicationRecord
   ACCOUNT_TYPES = %w[internal client].freeze
 
+  has_many :account_memberships, dependent: :destroy
+  has_many :users, through: :account_memberships
   has_many :contacts, dependent: :destroy
   has_many :assets, dependent: :destroy
   has_many :vessel_assets, -> { where(asset_type: "vessel", active: true).order(:name) }, class_name: "Asset"
@@ -12,6 +14,7 @@ class Account < ApplicationRecord
 
   scope :active, -> { where(active: true) }
   scope :inactive, -> { where(active: false) }
+  scope :client, -> { where(account_type: "client") }
   scope :ordered, -> { order(:name) }
 
   def primary_contact

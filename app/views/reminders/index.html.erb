@@ -4,7 +4,9 @@
       <p class="text-sm font-bold uppercase tracking-normal text-cyan-700">Work queue</p>
       <h1 class="mt-1 text-3xl font-black tracking-normal">Reminders</h1>
     </div>
-    <%= link_to "Add reminder", new_reminder_path, class: "inline-flex min-h-12 items-center justify-center rounded-md bg-cyan-700 px-5 py-3 text-base font-bold text-white shadow-sm" %>
+    <% if can_manage_records? %>
+      <%= link_to "Add reminder", new_reminder_path, class: "inline-flex min-h-12 items-center justify-center rounded-md bg-cyan-700 px-5 py-3 text-base font-bold text-white shadow-sm" %>
+    <% end %>
   </div>
 
   <div class="space-y-3">
@@ -21,14 +23,16 @@
           </div>
           <%= status_chip(reminder.status.humanize, tone: reminder.status == "completed" ? :success : :warning) %>
         </div>
-        <div class="mt-4 flex flex-col gap-2 sm:flex-row">
-          <% if reminder.status == "pending" %>
-            <%= button_to "Mark complete", reminder_path(reminder, status_action: "complete"), method: :patch, class: "min-h-12 w-full rounded-md bg-emerald-700 px-4 py-3 text-base font-bold text-white sm:w-auto" %>
-          <% else %>
-            <%= button_to "Mark pending", reminder_path(reminder, status_action: "reopen"), method: :patch, class: "min-h-12 w-full rounded-md border border-slate-200 px-4 py-3 text-base font-bold text-slate-700 sm:w-auto" %>
-          <% end %>
-          <%= link_to "Edit", edit_reminder_path(reminder), class: "inline-flex min-h-12 items-center justify-center rounded-md px-4 py-3 text-base font-bold text-cyan-700" %>
-        </div>
+        <% if can_manage_records? %>
+          <div class="mt-4 flex flex-col gap-2 sm:flex-row">
+            <% if reminder.status == "pending" %>
+              <%= button_to "Mark complete", reminder_path(reminder, status_action: "complete"), method: :patch, class: "min-h-12 w-full rounded-md bg-emerald-700 px-4 py-3 text-base font-bold text-white sm:w-auto", data: { turbo_submits_with: "Saving..." } %>
+            <% else %>
+              <%= button_to "Mark pending", reminder_path(reminder, status_action: "reopen"), method: :patch, class: "min-h-12 w-full rounded-md border border-slate-200 px-4 py-3 text-base font-bold text-slate-700 sm:w-auto", data: { turbo_submits_with: "Saving..." } %>
+            <% end %>
+            <%= link_to "Edit", edit_reminder_path(reminder), class: "inline-flex min-h-12 items-center justify-center rounded-md px-4 py-3 text-base font-bold text-cyan-700" %>
+          </div>
+        <% end %>
       </div>
     <% end %>
   </div>

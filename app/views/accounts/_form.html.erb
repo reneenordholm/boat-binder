@@ -39,7 +39,7 @@
   </section>
 
   <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-    <%= form.submit account.persisted? ? "Save owner" : "Add owner", class: "min-h-12 rounded-md bg-cyan-700 px-5 py-3 text-base font-black text-white shadow-sm" %>
+    <%= form.submit account.persisted? ? "Save owner" : "Add owner", class: "min-h-12 rounded-md bg-cyan-700 px-5 py-3 text-base font-black text-white shadow-sm", data: { turbo_submits_with: "Saving..." } %>
     <%= link_to "Cancel", account.persisted? ? owner_path(account) : owners_path, class: "inline-flex min-h-12 items-center justify-center rounded-md px-5 py-3 text-base font-bold text-slate-700" %>
   </div>
 <% end %>

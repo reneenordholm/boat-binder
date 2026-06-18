@@ -1,4 +1,5 @@
 class BinderNotesController < ApplicationController
+  before_action :require_write_access!
   before_action :set_vessel
   before_action :set_binder_note, only: %i[edit update destroy]
 
@@ -32,7 +33,7 @@ class BinderNotesController < ApplicationController
   private
 
   def set_vessel
-    @vessel = Asset.vessels.find_by!(slug: params[:vessel_id])
+    @vessel = scoped_vessels.find_by!(slug: params[:vessel_id])
   end
 
   def set_binder_note
