@@ -111,7 +111,7 @@ class AccessControlTest < ActionDispatch::IntegrationTest
         }
       }
     end
-    assert_response :forbidden
+    assert_access_denied_redirect
 
     patch vessel_path(@owner_a_vessel), params: {
       asset: {
@@ -119,25 +119,25 @@ class AccessControlTest < ActionDispatch::IntegrationTest
         account_id: @owner_a_account.id
       }
     }
-    assert_response :forbidden
+    assert_access_denied_redirect
     assert_not_equal "Renamed by Owner", @owner_a_vessel.reload.name
 
     assert_no_difference -> { Document.count } do
       delete document_path(@owner_a_document)
     end
-    assert_response :forbidden
+    assert_access_denied_redirect
   end
 
-  test "admin user management is restricted to admins" do
+  test "admin user management redirects non-admin users gracefully" do
     setup_access_records
 
     sign_in_as @captain
     get admin_users_path
-    assert_response :forbidden
+    assert_access_denied_redirect
 
     sign_in_as @owner_a_user
     get admin_users_path
-    assert_response :forbidden
+    assert_access_denied_redirect
   end
 
   test "login page does not expose demo credentials" do
@@ -146,6 +146,13 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_not_includes response.body, "Demo captain:"
     assert_not_includes response.body, "captain@hayesyacht.test / password"
+  end
+
+  test "layout includes svg favicon link" do
+    get new_session_path
+
+    assert_response :success
+    assert_select "link[rel='icon'][type='image/svg+xml']"
   end
 
   test "header and dashboard show logged in user role and greeting" do
@@ -274,18 +281,57 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     assert_equal [ @owner_a_account.id ], @owner_a_user.account_memberships.reload.active.pluck(:account_id)
   end
 
-  test "owner cannot access owner account routes directly" do
+  test "owner restricted direct access redirects gracefully without exposing records" do
     setup_access_records
     sign_in_as @owner_a_user
 
     get owners_path
-    assert_response :forbidden
+    assert_access_denied_redirect
+    assert_not_includes response.body, @owner_b_account.name
+    assert_not_includes response.body, @owner_b_vessel.name
+
+    get accounts_path
+    assert_access_denied_redirect
+    assert_not_includes response.body, @owner_b_account.name
+    assert_not_includes response.body, @owner_b_vessel.name
 
     get owner_path(@owner_a_account)
-    assert_response :forbidden
+    assert_access_denied_redirect
+  end
+
+  test "admin and captain can access owner and account indexes" do
+    setup_access_records
+
+    sign_in_as @admin
+    get owners_path
+    assert_response :success
+    assert_includes response.body, @owner_a_account.name
+    assert_includes response.body, @owner_b_account.name
+
+    get accounts_path
+    assert_response :success
+    assert_includes response.body, @owner_a_account.name
+    assert_includes response.body, @owner_b_account.name
+
+    sign_in_as @captain
+    get owners_path
+    assert_response :success
+    assert_includes response.body, @owner_a_account.name
+    assert_includes response.body, @owner_b_account.name
+
+    get accounts_path
+    assert_response :success
+    assert_includes response.body, @owner_a_account.name
+    assert_includes response.body, @owner_b_account.name
   end
 
   private
+
+  def assert_access_denied_redirect
+    assert_redirected_to root_path
+    follow_redirect!
+    assert_includes response.body, Authorization::ACCESS_DENIED_MESSAGE
+  end
 
   def setup_access_records
     @admin = create_user(email: "admin@example.test", role: "admin", name: "Admin User")

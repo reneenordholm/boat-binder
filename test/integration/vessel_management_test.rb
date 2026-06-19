@@ -65,7 +65,9 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
 
     patch vessel_path(vessel), params: { asset: { name: vessel.name, account_id: other_account.id } }
 
-    assert_response :forbidden
+    assert_redirected_to root_path
+    follow_redirect!
+    assert_includes response.body, Authorization::ACCESS_DENIED_MESSAGE
     assert_equal vessel.account, vessel.reload.account
   end
 

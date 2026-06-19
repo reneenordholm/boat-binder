@@ -95,6 +95,8 @@ class DocumentManagementTest < ActionDispatch::IntegrationTest
       }
     end
 
-    assert_response :forbidden
+    assert_redirected_to root_path
+    follow_redirect!
+    assert_includes response.body, Authorization::ACCESS_DENIED_MESSAGE
   end
 end
