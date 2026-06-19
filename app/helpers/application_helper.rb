@@ -58,7 +58,7 @@ module ApplicationHelper
     ]
     items << [ "Owners", owners_path, "O" ] if internal_user?
     items << [ "Documents", documents_path, "F" ]
-    items << [ "Service Visits", root_path(anchor: "recent-service-visits"), "S" ]
+    items << [ "Service Visits", service_visits_path, "S" ]
     items << [ "Users", admin_users_path, "U" ] if admin_user?
     items
   end

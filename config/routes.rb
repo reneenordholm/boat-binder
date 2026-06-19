@@ -16,6 +16,7 @@ Rails.application.routes.draw do
 
   resources :documents, only: %i[index new create destroy]
   resources :reminders, only: %i[index new create edit update]
+  resources :service_visits, only: %i[index]
 
   namespace :admin do
     resources :users, except: %i[show destroy]
