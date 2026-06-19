@@ -143,7 +143,7 @@ class DocumentManagementTest < ActionDispatch::IntegrationTest
 
     begin
       oversized_file.binmode
-      oversized_file.write("0" * (Document::MAX_FILE_SIZE + 1))
+      oversized_file.truncate(Document::MAX_FILE_SIZE + 1)
       oversized_file.rewind
 
       assert_no_difference -> { Document.count } do
