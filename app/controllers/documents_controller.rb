@@ -63,7 +63,7 @@ class DocumentsController < ApplicationController
     return true if document_account_id.blank? && document_asset_id.blank?
 
     unless can_manage_document_relationships?
-      head :forbidden
+      deny_access!
       return false
     end
 

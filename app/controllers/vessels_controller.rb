@@ -92,7 +92,7 @@ class VesselsController < ApplicationController
     return true if vessel_account_id.blank?
 
     unless can_manage_vessel_accounts?
-      head :forbidden
+      deny_access!
       return false
     end
 

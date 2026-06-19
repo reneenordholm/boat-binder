@@ -4,6 +4,7 @@ Rails.application.routes.draw do
 
   root "dashboard#index"
 
+  get "accounts", to: "accounts#index", as: :accounts
   resources :owners, controller: :accounts, except: %i[destroy]
 
   resources :vessels do

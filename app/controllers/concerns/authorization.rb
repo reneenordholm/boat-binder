@@ -1,6 +1,8 @@
 module Authorization
   extend ActiveSupport::Concern
 
+  ACCESS_DENIED_MESSAGE = "That page is not available for your account."
+
   included do
     helper_method :current_user, :admin_user?, :internal_user?, :owner_user?, :can_manage_records?
   end
@@ -28,15 +30,23 @@ module Authorization
   end
 
   def require_admin!
-    head :forbidden unless admin_user?
+    deny_access! unless admin_user?
   end
 
   def require_internal!
-    head :forbidden unless internal_user?
+    deny_access! unless internal_user?
   end
 
   def require_write_access!
-    head :forbidden unless can_manage_records?
+    deny_access! unless can_manage_records?
+  end
+
+  def deny_access!
+    if request.format.html? || request.format.turbo_stream?
+      redirect_to root_path, alert: ACCESS_DENIED_MESSAGE
+    else
+      head :forbidden
+    end
   end
 
   def ensure_active_user!

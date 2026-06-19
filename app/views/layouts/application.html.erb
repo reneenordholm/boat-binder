@@ -14,8 +14,7 @@
     <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
     <%#= tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
 
-    <link rel="icon" href="/icon.png" type="image/png">
-    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <%= favicon_link_tag "favicon.svg", type: "image/svg+xml" %>
     <link rel="apple-touch-icon" href="/icon.png">
 
     <%# Includes all stylesheet files in app/assets/stylesheets %>
@@ -29,7 +28,7 @@
         <aside class="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col bg-[#0B1F35] text-white md:flex">
           <div class="p-6">
             <%= link_to root_path, class: "flex items-center gap-3" do %>
-              <span class="grid h-12 w-12 place-items-center rounded-md bg-[#7DAAB3] text-sm font-black text-[#0B1F35]">BB</span>
+              <%= render "shared/brand_mark", class_name: "h-12 w-12" %>
               <span>
                 <span class="block text-xl font-black leading-tight tracking-normal">Boat Binder</span>
                 <span class="block text-xs font-bold uppercase tracking-normal text-[#B9D5DA]">Hayes Yacht Company</span>
@@ -58,7 +57,7 @@
         <header class="sticky top-0 z-30 border-b border-[#E7DED2] bg-white/95 backdrop-blur md:hidden">
           <div class="flex items-center justify-between px-4 py-3">
             <%= link_to root_path, class: "flex items-center gap-2" do %>
-              <span class="grid h-10 w-10 place-items-center rounded-md bg-[#0B1F35] text-sm font-black text-white">BB</span>
+              <%= render "shared/brand_mark", class_name: "h-10 w-10" %>
               <span>
                 <span class="block text-base font-black leading-tight">Boat Binder</span>
                 <span class="block text-xs font-medium text-[#1E5A7A]">Hayes Yacht Company</span>
