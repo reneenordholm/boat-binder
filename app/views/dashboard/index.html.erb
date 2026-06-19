@@ -121,7 +121,10 @@
       </section>
 
       <section id="recent-service-visits">
-        <h2 class="mb-3 text-2xl font-black tracking-normal">Recent service visits</h2>
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <h2 class="text-2xl font-black tracking-normal">Recent service visits</h2>
+          <%= link_to "View all", service_visits_path, class: subtle_link_class %>
+        </div>
         <div class="space-y-3">
           <% @recent_service_visits.each do |visit| %>
             <%= link_to vessel_service_visit_path(visit.asset, visit), class: app_card_class("block p-4 transition hover:border-[#7DAAB3] hover:shadow-md") do %>

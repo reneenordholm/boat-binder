@@ -1,6 +1,52 @@
 require "test_helper"
 
 class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
+  test "captain views all service visits from dashboard and navigation" do
+    captain = create_user(email: "captain-visits@example.test")
+    sign_in_as captain
+    vessel = create_vessel(name: "Blue Meridian")
+    other_vessel = create_vessel(account: create_account(name: "Harbor North"), name: "Tide Runner")
+    vessel.service_visits.create!(performed_by_user: captain, visit_date: Date.current, summary: "Primary visit")
+    other_vessel.service_visits.create!(performed_by_user: captain, visit_date: Date.yesterday, summary: "Second visit")
+
+    get root_path
+
+    assert_response :success
+    assert_select "a[href='#{service_visits_path}']", text: "Service Visits"
+    assert_select "a[href='#{service_visits_path}']", text: "View all"
+    assert_select "nav.fixed a", text: "Vessels"
+    assert_select "nav.fixed a", text: "Fleet", count: 0
+
+    get service_visits_path
+
+    assert_response :success
+    assert_includes response.body, "Primary visit"
+    assert_includes response.body, "Second visit"
+    assert_includes response.body, "Blue Meridian"
+    assert_includes response.body, "Tide Runner"
+  end
+
+  test "owner all service visits page is scoped to associated vessels" do
+    owner_account = create_account(name: "Elliott Family")
+    other_account = create_account(name: "Harbor North")
+    owner_vessel = create_vessel(account: owner_account, name: "Blue Meridian")
+    other_vessel = create_vessel(account: other_account, name: "Tide Runner")
+    captain = create_user(email: "captain-scope@example.test")
+    owner = create_user(email: "owner-visits@example.test", role: "owner")
+    create_account_membership(user: owner, account: owner_account)
+    owner_vessel.service_visits.create!(performed_by_user: captain, visit_date: Date.current, summary: "Owner visible visit")
+    other_vessel.service_visits.create!(performed_by_user: captain, visit_date: Date.current, summary: "Restricted visit")
+    sign_in_as owner
+
+    get service_visits_path
+
+    assert_response :success
+    assert_includes response.body, "Owner visible visit"
+    assert_includes response.body, "Blue Meridian"
+    assert_not_includes response.body, "Restricted visit"
+    assert_not_includes response.body, "Tide Runner"
+  end
+
   test "captain starts a visit with default engines checklist and battery checks" do
     sign_in_as
     vessel = create_vessel

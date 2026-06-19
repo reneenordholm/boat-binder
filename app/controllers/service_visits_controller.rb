@@ -1,9 +1,13 @@
 class ServiceVisitsController < ApplicationController
   before_action :require_write_access!, only: %i[new create]
-  before_action :set_vessel
+  before_action :set_vessel, if: -> { params[:vessel_id].present? }
 
   def index
-    @service_visits = @vessel.service_visits.includes(:performed_by_user).recent
+    @service_visits = if @vessel
+      @vessel.service_visits.includes(:performed_by_user, asset: :account).recent
+    else
+      scoped_service_visits.includes(:performed_by_user, asset: :account).recent
+    end
   end
 
   def new

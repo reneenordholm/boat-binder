@@ -16,7 +16,7 @@ class ServiceVisitWorkflowTest < ApplicationSystemTestCase
     click_on "Sign in"
 
     assert_text "Captain dashboard"
-    click_on "Vessels"
+    within("aside.fixed") { click_on "Vessels" }
     click_on @vessel.name
     click_on "Start Visit"
 
