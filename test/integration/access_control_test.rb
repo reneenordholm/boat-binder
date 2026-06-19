@@ -80,6 +80,11 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     assert_includes response.body, @owner_a_reminder.title
     assert_not_includes response.body, @owner_b_reminder.title
     assert_not_includes response.body, "Mark complete"
+
+    get service_visits_path
+    assert_response :success
+    assert_not_includes response.body, @owner_b_visit.summary
+    assert_not_includes response.body, @owner_b_vessel.name
   end
 
   test "owner cannot access another owner's direct object URLs" do
@@ -91,6 +96,9 @@ class AccessControlTest < ActionDispatch::IntegrationTest
 
     get vessel_service_visit_path(@owner_b_vessel, @owner_b_visit)
     assert_response :not_found
+
+    get edit_vessel_path(@owner_b_vessel)
+    assert_access_denied_redirect
 
     get vessel_path(@owner_a_vessel)
     assert_response :success
@@ -138,6 +146,41 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     sign_in_as @owner_a_user
     get admin_users_path
     assert_access_denied_redirect
+  end
+
+  test "non-admin users cannot create or update admin-managed users" do
+    setup_access_records
+
+    sign_in_as @captain
+    assert_no_difference -> { User.count } do
+      post admin_users_path, params: {
+        user: {
+          name: "Created by Captain",
+          email_address: "captain-created@example.test",
+          role: "owner",
+          active: "1",
+          password: "password",
+          password_confirmation: "password",
+          account_ids: [ @owner_a_account.id ]
+        }
+      }
+    end
+    assert_access_denied_redirect
+
+    sign_in_as @owner_a_user
+    patch admin_user_path(@owner_b_user), params: {
+      user: {
+        name: "Owner Escalation",
+        email_address: @owner_b_user.email_address,
+        role: "admin",
+        active: "1",
+        password: "",
+        password_confirmation: ""
+      }
+    }
+    assert_access_denied_redirect
+    assert_not @owner_b_user.reload.admin?
+    assert_not_equal "Owner Escalation", @owner_b_user.name
   end
 
   test "login page does not expose demo credentials" do
@@ -279,6 +322,68 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
     assert_includes response.body, "Password confirmation"
     assert_equal [ @owner_a_account.id ], @owner_a_user.account_memberships.reload.active.pluck(:account_id)
+  end
+
+  test "admin user management rejects invalid role values" do
+    setup_access_records
+    sign_in_as @admin
+
+    assert_no_difference -> { User.count } do
+      post admin_users_path, params: {
+        user: {
+          name: "Invalid Role",
+          email_address: "invalid-role@example.test",
+          role: "super_admin",
+          active: "1",
+          password: "password",
+          password_confirmation: "password",
+          account_ids: [ @owner_a_account.id ]
+        }
+      }
+    end
+
+    assert_response :unprocessable_entity
+    assert_includes response.body, "Role is not included in the list"
+
+    patch admin_user_path(@owner_a_user), params: {
+      user: {
+        name: @owner_a_user.name,
+        email_address: @owner_a_user.email_address,
+        role: "super_admin",
+        active: "1",
+        password: "",
+        password_confirmation: ""
+      }
+    }
+
+    assert_response :unprocessable_entity
+    assert_includes response.body, "Role is not included in the list"
+    assert_equal "owner", @owner_a_user.reload.role
+  end
+
+  test "admins can assign only valid roles" do
+    setup_access_records
+    sign_in_as @admin
+
+    User::ROLES.each do |role|
+      assert_difference -> { User.count }, 1 do
+        post admin_users_path, params: {
+          user: {
+            name: "#{role.humanize} User",
+            email_address: "#{role}-created@example.test",
+            role: role,
+            active: "1",
+            password: "password",
+            password_confirmation: "password",
+            account_ids: [ @owner_a_account.id ]
+          }
+        }
+      end
+
+      created_user = User.find_by!(email_address: "#{role}-created@example.test")
+      assert_equal role, created_user.role
+      assert_redirected_to admin_users_path
+    end
   end
 
   test "owner restricted direct access redirects gracefully without exposing records" do
