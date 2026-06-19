@@ -120,15 +120,19 @@ class DocumentManagementTest < ActionDispatch::IntegrationTest
 
     rejected_uploads.each do |filename, content_type|
       assert_no_difference -> { Document.count } do
-        post documents_path, params: {
-          document: {
-            account_id: vessel.account_id,
-            asset_id: vessel.id,
-            title: "Rejected #{content_type}",
-            document_type: "other",
-            file: fixture_file_upload(filename, content_type)
-          }
-        }
+        assert_no_difference -> { ActiveStorage::Blob.count } do
+          assert_no_difference -> { ActiveStorage::Attachment.count } do
+            post documents_path, params: {
+              document: {
+                account_id: vessel.account_id,
+                asset_id: vessel.id,
+                title: "Rejected #{content_type}",
+                document_type: "other",
+                file: fixture_file_upload(filename, content_type)
+              }
+            }
+          end
+        end
       end
 
       assert_response :unprocessable_entity
@@ -147,15 +151,19 @@ class DocumentManagementTest < ActionDispatch::IntegrationTest
       oversized_file.rewind
 
       assert_no_difference -> { Document.count } do
-        post documents_path, params: {
-          document: {
-            account_id: vessel.account_id,
-            asset_id: vessel.id,
-            title: "Oversized upload",
-            document_type: "other",
-            file: Rack::Test::UploadedFile.new(oversized_file.path, "application/pdf", true)
-          }
-        }
+        assert_no_difference -> { ActiveStorage::Blob.count } do
+          assert_no_difference -> { ActiveStorage::Attachment.count } do
+            post documents_path, params: {
+              document: {
+                account_id: vessel.account_id,
+                asset_id: vessel.id,
+                title: "Oversized upload",
+                document_type: "other",
+                file: Rack::Test::UploadedFile.new(oversized_file.path, "application/pdf", true)
+              }
+            }
+          end
+        end
       end
     ensure
       oversized_file.close!

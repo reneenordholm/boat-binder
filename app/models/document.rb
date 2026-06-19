@@ -29,12 +29,18 @@ class Document < ApplicationRecord
   def file_is_safe_upload
     return unless file.attached?
 
+    unsafe_upload = false
+
     unless ALLOWED_FILE_CONTENT_TYPES.include?(file.blob.content_type.to_s)
       errors.add(:file, "must be a PDF, JPEG, PNG, or WEBP file")
+      unsafe_upload = true
     end
 
     if file.blob.byte_size > MAX_FILE_SIZE
       errors.add(:file, "must be 25 MB or smaller")
+      unsafe_upload = true
     end
+
+    file.purge if unsafe_upload
   end
 end

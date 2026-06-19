@@ -24,4 +24,20 @@ class DocumentTest < ActiveSupport::TestCase
     assert_not document.valid?
     assert_includes document.errors[:asset], "must belong to the selected owner"
   end
+
+  test "unsafe upload is purged from unsaved document during validation" do
+    document = Document.new(account: create_account, title: "Unsafe upload", document_type: "other")
+
+    assert_no_difference -> { ActiveStorage::Blob.count } do
+      assert_no_difference -> { ActiveStorage::Attachment.count } do
+        document.file.attach(io: StringIO.new("unsafe"), filename: "unsafe.exe", content_type: "application/x-msdownload")
+
+        assert document.file.attached?
+        assert_not document.valid?
+        assert_not document.file.attached?
+      end
+    end
+
+    assert_includes document.errors[:file], "must be a PDF, JPEG, PNG, or WEBP file"
+  end
 end
