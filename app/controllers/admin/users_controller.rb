@@ -86,7 +86,9 @@ module Admin
 
     def admin_managed_user_valid?
       @user.valid?
-      @user.errors.add(:role, "is not included in the list") if @invalid_role_value.present?
+      if @invalid_role_value.present? && @user.errors[:role].blank?
+        @user.errors.add(:role, "is not included in the list")
+      end
       @user.errors.empty?
     end
 
