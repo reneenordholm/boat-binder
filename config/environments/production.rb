@@ -60,14 +60,19 @@ Rails.application.configure do
   # Set host to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: ENV.fetch("APP_HOST", "app.boat-binder.com") }
 
-  # Specify outgoing SMTP server. Remember to add smtp/* credentials via bin/rails credentials:edit.
+  # Password reset emails require SMTP settings or an email provider before they
+  # can be delivered from production. Do not hardcode credentials; configure
+  # SMTP with environment variables such as SMTP_HOST, SMTP_PORT, SMTP_USERNAME,
+  # SMTP_PASSWORD, SMTP_DOMAIN, and SMTP_FROM when an email provider is chosen.
   # config.action_mailer.smtp_settings = {
-  #   user_name: Rails.application.credentials.dig(:smtp, :user_name),
-  #   password: Rails.application.credentials.dig(:smtp, :password),
-  #   address: "smtp.example.com",
-  #   port: 587,
+  #   address: ENV.fetch("SMTP_HOST"),
+  #   port: ENV.fetch("SMTP_PORT", 587),
+  #   user_name: ENV.fetch("SMTP_USERNAME"),
+  #   password: ENV.fetch("SMTP_PASSWORD"),
+  #   domain: ENV.fetch("SMTP_DOMAIN", ENV.fetch("APP_HOST", "app.boat-binder.com")),
   #   authentication: :plain
   # }
+  # config.action_mailer.default_options = { from: ENV.fetch("SMTP_FROM") }
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
   # the I18n.default_locale when a translation cannot be found).

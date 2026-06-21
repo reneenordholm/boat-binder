@@ -1,4 +1,5 @@
 require "test_helper"
+require "stringio"
 
 class PasswordResetTest < ActionDispatch::IntegrationTest
   setup do
@@ -19,7 +20,7 @@ class PasswordResetTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_session_path
     follow_redirect!
     assert_response :success
-    assert_includes response.body, "Password reset instructions sent (if user with that email address exists)."
+    assert_includes response.body, PasswordsController::RESET_REQUEST_NOTICE
 
     mail = ActionMailer::Base.deliveries.last
     assert_equal [ user.email_address ], mail.to
@@ -35,8 +36,36 @@ class PasswordResetTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_session_path
     follow_redirect!
     assert_response :success
-    assert_includes response.body, "Password reset instructions sent (if user with that email address exists)."
+    assert_includes response.body, PasswordsController::RESET_REQUEST_NOTICE
     assert_not_includes response.body, "missing@example.test"
+  end
+
+  test "password reset delivery failures are logged and do not return server errors" do
+    user = create_user(email: "smtp-failure@example.test")
+    log_output = StringIO.new
+    original_logger = Rails.logger
+    Rails.logger = ActiveSupport::Logger.new(log_output)
+    failed_delivery = Object.new
+    failed_delivery.define_singleton_method(:deliver_now) do
+      raise Errno::ECONNREFUSED, "connect(2) for localhost port 25"
+    end
+    original_reset = PasswordsMailer.method(:reset)
+    PasswordsMailer.define_singleton_method(:reset) { |_user| failed_delivery }
+
+    assert_no_difference -> { ActionMailer::Base.deliveries.size } do
+      post passwords_path, params: { email_address: user.email_address }
+    end
+
+    assert_redirected_to new_session_path
+    follow_redirect!
+    assert_response :success
+    assert_includes response.body, PasswordsController::RESET_REQUEST_NOTICE
+    assert_not_includes response.body, user.email_address
+    assert_includes log_output.string, "Password reset email delivery failed for user_id=#{user.id}"
+    assert_includes log_output.string, "Errno::ECONNREFUSED"
+  ensure
+    PasswordsMailer.define_singleton_method(:reset, original_reset) if original_reset
+    Rails.logger = original_logger if original_logger
   end
 
   test "password reset email uses the configured app host for reset links" do
