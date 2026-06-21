@@ -35,6 +35,12 @@ module ApplicationHelper
     user.role.to_s.humanize
   end
 
+  def dashboard_title
+    return "Dashboard" unless Current.user
+
+    "#{role_label(Current.user)} Dashboard"
+  end
+
   def app_card_class(extra = "")
     "rounded-md border border-[#E7DED2] bg-white shadow-sm shadow-[#0B1F35]/5 #{extra}".squish
   end

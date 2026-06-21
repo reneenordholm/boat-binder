@@ -90,14 +90,20 @@
 
       <% if authenticated? %>
         <nav class="fixed inset-x-0 bottom-0 z-40 border-t border-[#E7DED2] bg-white md:hidden">
-          <div class="grid auto-cols-fr grid-flow-col text-center text-[0.7rem] font-black text-[#0B1F35]">
-            <% app_nav_items.first(5).each do |label, path, initial| %>
-              <%= link_to path, class: "py-3" do %>
+          <div class="flex overflow-x-auto text-center text-[0.7rem] font-black text-[#0B1F35]">
+            <% app_nav_items.each do |label, path, initial| %>
+              <%= link_to path, class: "min-w-16 flex-1 py-3" do %>
                 <span class="mx-auto mb-1 grid h-7 w-7 place-items-center rounded-md bg-[#E8F3F5] text-xs text-[#1E5A7A]" aria-hidden="true">
                   <span class="h-2 w-2 rounded-full bg-[#1E5A7A]"></span>
                 </span>
                 <%= { "Dashboard" => "Home", "Owners" => "Clients", "Documents" => "Docs", "Service Visits" => "Visits" }.fetch(label, label) %>
               <% end %>
+            <% end %>
+            <%= button_to session_path, method: :delete, form_class: "contents", class: "min-w-16 flex-1 py-3 text-[0.7rem] font-black text-[#0B1F35]" do %>
+              <span class="mx-auto mb-1 grid h-7 w-7 place-items-center rounded-md bg-[#E8F3F5] text-xs text-[#1E5A7A]" aria-hidden="true">
+                <span class="h-2 w-2 rounded-full bg-[#1E5A7A]"></span>
+              </span>
+              Sign out
             <% end %>
           </div>
         </nav>

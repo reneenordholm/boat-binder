@@ -148,6 +148,18 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     assert_access_denied_redirect
   end
 
+  test "admin users can reach admin user management from users redirect" do
+    setup_access_records
+    sign_in_as @admin
+
+    get "/users"
+    assert_redirected_to admin_users_path
+
+    follow_redirect!
+    assert_response :success
+    assert_includes response.body, @owner_a_user.email_address
+  end
+
   test "non-admin users cannot create or update admin-managed users" do
     setup_access_records
 
@@ -208,6 +220,7 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Admin User"
     assert_includes response.body, "Admin"
     assert_includes response.body, "Hello Admin"
+    assert_includes response.body, "Admin Dashboard"
     assert_select "a", text: "Owners"
 
     sign_in_as @captain
@@ -217,6 +230,7 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Captain User"
     assert_includes response.body, "Captain"
     assert_includes response.body, "Hello Captain"
+    assert_includes response.body, "Captain Dashboard"
     assert_select "a", text: "Owners"
 
     sign_in_as @owner_a_user
@@ -226,7 +240,38 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Avery Elliott"
     assert_includes response.body, "Owner"
     assert_includes response.body, "Hello Avery"
+    assert_includes response.body, "Owner Dashboard"
     assert_select "a", text: "Owners", count: 0
+  end
+
+  test "admin mobile and desktop navigation includes users link and mobile sign out" do
+    setup_access_records
+    sign_in_as @admin
+
+    get root_path
+
+    assert_response :success
+    assert_select "aside.fixed a[href='#{admin_users_path}']", text: "Users"
+    assert_select "nav.fixed a[href='#{admin_users_path}']", text: "Users"
+    assert_select "nav.fixed form[action='#{session_path}'] button", text: "Sign out"
+  end
+
+  test "captain and owner navigation does not include users link" do
+    setup_access_records
+
+    sign_in_as @captain
+    get root_path
+
+    assert_response :success
+    assert_select "a[href='#{admin_users_path}']", count: 0
+    assert_select "nav.fixed form[action='#{session_path}'] button", text: "Sign out"
+
+    sign_in_as @owner_a_user
+    get root_path
+
+    assert_response :success
+    assert_select "a[href='#{admin_users_path}']", count: 0
+    assert_select "nav.fixed form[action='#{session_path}'] button", text: "Sign out"
   end
 
   test "admin and captain user forms show global account access as checked and disabled" do
