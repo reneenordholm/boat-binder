@@ -54,7 +54,7 @@ module Authorization
     return if current_user&.active?
 
     terminate_session
-    redirect_to new_session_path, alert: "This user account is inactive."
+    redirect_to new_session_path, alert: Authentication::GENERIC_LOGIN_FAILURE_MESSAGE
   end
 
   def scoped_accounts

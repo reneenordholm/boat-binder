@@ -1,6 +1,8 @@
 module Authentication
   extend ActiveSupport::Concern
 
+  GENERIC_LOGIN_FAILURE_MESSAGE = "We couldn't sign you in with those credentials. Please contact an administrator if you believe this is a mistake."
+
   included do
     before_action :require_authentication
     helper_method :authenticated?

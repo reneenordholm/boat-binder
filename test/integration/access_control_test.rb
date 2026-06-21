@@ -148,6 +148,18 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     assert_access_denied_redirect
   end
 
+  test "admin users can reach admin user management from users redirect" do
+    setup_access_records
+    sign_in_as @admin
+
+    get "/users"
+    assert_redirected_to admin_users_path
+
+    follow_redirect!
+    assert_response :success
+    assert_includes response.body, @owner_a_user.email_address
+  end
+
   test "non-admin users cannot create or update admin-managed users" do
     setup_access_records
 
@@ -191,6 +203,37 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, "captain@hayesyacht.test / password"
   end
 
+  test "inactive users see generic login failure and cannot sign in" do
+    inactive_user = create_user(email: "inactive@example.test", active: false)
+
+    assert_no_difference -> { Session.count } do
+      post session_path, params: {
+        email_address: inactive_user.email_address,
+        password: "password"
+      }
+    end
+
+    assert_redirected_to new_session_path
+    follow_redirect!
+    assert_response :success
+    assert_select "div", text: Authentication::GENERIC_LOGIN_FAILURE_MESSAGE
+    assert_not_includes response.body.downcase, "inactive"
+  end
+
+  test "active users can still sign in successfully" do
+    active_user = create_user(email: "active-login@example.test", active: true)
+
+    assert_difference -> { Session.count }, 1 do
+      post session_path, params: {
+        email_address: active_user.email_address,
+        password: "password"
+      }
+    end
+
+    assert_redirected_to root_path
+    assert_equal active_user, Session.order(:created_at).last.user
+  end
+
   test "layout includes svg favicon link" do
     get new_session_path
 
@@ -208,6 +251,7 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Admin User"
     assert_includes response.body, "Admin"
     assert_includes response.body, "Hello Admin"
+    assert_includes response.body, "Admin Dashboard"
     assert_select "a", text: "Owners"
 
     sign_in_as @captain
@@ -217,6 +261,7 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Captain User"
     assert_includes response.body, "Captain"
     assert_includes response.body, "Hello Captain"
+    assert_includes response.body, "Captain Dashboard"
     assert_select "a", text: "Owners"
 
     sign_in_as @owner_a_user
@@ -226,7 +271,38 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Avery Elliott"
     assert_includes response.body, "Owner"
     assert_includes response.body, "Hello Avery"
+    assert_includes response.body, "Owner Dashboard"
     assert_select "a", text: "Owners", count: 0
+  end
+
+  test "admin mobile and desktop navigation includes users link and mobile sign out" do
+    setup_access_records
+    sign_in_as @admin
+
+    get root_path
+
+    assert_response :success
+    assert_select "aside.fixed a[href='#{admin_users_path}']", text: "Users"
+    assert_select "nav.fixed a[href='#{admin_users_path}']", text: "Users"
+    assert_select "nav.fixed form[action='#{session_path}'] button", text: "Sign out"
+  end
+
+  test "captain and owner navigation does not include users link" do
+    setup_access_records
+
+    sign_in_as @captain
+    get root_path
+
+    assert_response :success
+    assert_select "a[href='#{admin_users_path}']", count: 0
+    assert_select "nav.fixed form[action='#{session_path}'] button", text: "Sign out"
+
+    sign_in_as @owner_a_user
+    get root_path
+
+    assert_response :success
+    assert_select "a[href='#{admin_users_path}']", count: 0
+    assert_select "nav.fixed form[action='#{session_path}'] button", text: "Sign out"
   end
 
   test "admin and captain user forms show global account access as checked and disabled" do
@@ -255,6 +331,49 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     assert_select "input[name='user[account_ids][]'][checked='checked']", count: 1
     assert_select "input[name='user[account_ids][]'][value='#{@owner_a_account.id}'][checked='checked']"
     assert_select "input[name='user[account_ids][]'][value='#{@owner_b_account.id}'][checked='checked']", count: 0
+  end
+
+  test "admin user forms use the same active account list as owners index" do
+    setup_access_records
+    internal_account = create_account(name: "Hayes Yacht Company", account_type: "internal")
+    inactive_account = create_account(name: "Carter and Vale")
+    inactive_account.update!(active: false)
+    expected_account_ids = Account.active.ordered.pluck(:id)
+
+    sign_in_as @admin
+
+    get owners_path
+    assert_response :success
+    expected_account_ids.each do |account_id|
+      assert_includes response.body, Account.find(account_id).name
+    end
+    assert_not_includes response.body, inactive_account.name
+
+    get new_admin_user_path
+    assert_response :success
+    assert_equal expected_account_ids, admin_user_form_account_ids
+    assert_includes response.body, internal_account.name
+    assert_not_includes response.body, inactive_account.name
+
+    get edit_admin_user_path(@owner_a_user)
+    assert_response :success
+    assert_equal expected_account_ids, admin_user_form_account_ids
+    assert_includes response.body, internal_account.name
+    assert_not_includes response.body, inactive_account.name
+
+    assert_no_difference -> { @owner_a_user.account_memberships.where(account: inactive_account).count } do
+      patch admin_user_path(@owner_a_user), params: {
+        user: {
+          name: @owner_a_user.name,
+          email_address: @owner_a_user.email_address,
+          role: "owner",
+          active: "1",
+          password: "",
+          password_confirmation: "",
+          account_ids: [ @owner_a_account.id, inactive_account.id ]
+        }
+      }
+    end
   end
 
   test "internal user account access params do not create memberships" do
@@ -481,5 +600,9 @@ class AccessControlTest < ActionDispatch::IntegrationTest
       visit_date: Date.current,
       summary: "Other owner report"
     )
+  end
+
+  def admin_user_form_account_ids
+    css_select("input[name='user[account_ids][]']").map { |input| input["value"].to_i }
   end
 end

@@ -37,8 +37,10 @@
         <%= form.select :document_type, Document::DOCUMENT_TYPES.map { |type| [type.humanize, type] }, {}, class: "mt-2 min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base" %>
       </div>
       <div>
-        <%= form.label :file, class: "text-sm font-semibold text-slate-700" %>
+        <%= form.label :file, "Capture image or upload file", class: "text-sm font-semibold text-slate-700" %>
         <%= form.file_field :file, accept: Document::ALLOWED_FILE_CONTENT_TYPES.join(","), capture: "environment", class: "mt-2 block min-h-12 w-full rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-base file:mr-3 file:rounded-md file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:font-bold file:text-white" %>
+        <p class="mt-2 text-sm leading-6 text-slate-600 md:hidden">On mobile: Capture a photo from your camera.</p>
+        <p class="mt-2 hidden text-sm leading-6 text-slate-600 md:block">On desktop: Upload a PDF or image.</p>
       </div>
       <div>
         <%= form.label :notes, class: "text-sm font-semibold text-slate-700" %>

@@ -92,7 +92,7 @@
                 <p class="mt-1 text-sm text-slate-600"><%= reminder.reminder_type.humanize %> due <%= short_date(reminder.due_date) %></p>
               </div>
               <% if can_manage_records? %>
-                <%= button_to "Done", reminder_path(reminder), method: :patch, class: "min-h-11 rounded-md bg-emerald-700 px-4 py-2 text-sm font-bold text-white", data: { turbo_submits_with: "Saving..." } %>
+                <%= button_to "Done", reminder_path(reminder, status_action: "complete"), method: :patch, class: "min-h-11 rounded-md bg-emerald-700 px-4 py-2 text-sm font-bold text-white", data: { turbo_submits_with: "Saving..." } %>
               <% end %>
             </div>
           <% end %>
