@@ -78,6 +78,10 @@ class DocumentManagementTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "select[data-dependent-vessels-target='asset'] option[data-account-id='#{vessel.account_id}'][value='#{vessel.id}']", vessel.name
+    assert_select "label[for='document_file']", "Capture image or upload file"
+    assert_select "input[type='file'][name='document[file]'][accept=?][capture=?]", Document::ALLOWED_FILE_CONTENT_TYPES.join(","), "environment"
+    assert_includes response.body, "On mobile: Capture a photo from your camera."
+    assert_includes response.body, "On desktop: Upload a PDF or image."
     assert_select "input[type=submit][data-turbo-submits-with=?]", "Uploading..."
   end
 
