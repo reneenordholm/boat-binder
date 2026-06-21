@@ -203,6 +203,37 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, "captain@hayesyacht.test / password"
   end
 
+  test "inactive users see generic login failure and cannot sign in" do
+    inactive_user = create_user(email: "inactive@example.test", active: false)
+
+    assert_no_difference -> { Session.count } do
+      post session_path, params: {
+        email_address: inactive_user.email_address,
+        password: "password"
+      }
+    end
+
+    assert_redirected_to new_session_path
+    follow_redirect!
+    assert_response :success
+    assert_select "div", text: Authentication::GENERIC_LOGIN_FAILURE_MESSAGE
+    assert_not_includes response.body.downcase, "inactive"
+  end
+
+  test "active users can still sign in successfully" do
+    active_user = create_user(email: "active-login@example.test", active: true)
+
+    assert_difference -> { Session.count }, 1 do
+      post session_path, params: {
+        email_address: active_user.email_address,
+        password: "password"
+      }
+    end
+
+    assert_redirected_to root_path
+    assert_equal active_user, Session.order(:created_at).last.user
+  end
+
   test "layout includes svg favicon link" do
     get new_session_path
 
