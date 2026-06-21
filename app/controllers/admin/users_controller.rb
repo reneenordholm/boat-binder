@@ -56,7 +56,15 @@ module Admin
     end
 
     def assign_admin_managed_user_attributes(user)
-      user.role = params.dig(:user, :role) if params.dig(:user, :role).present?
+      requested_role = params.dig(:user, :role)
+      if requested_role.present?
+        if User::ROLES.include?(requested_role)
+          user.role = requested_role
+        else
+          @invalid_role_value = requested_role
+        end
+      end
+
       return unless params.dig(:user, :active)
 
       user.active = ActiveModel::Type::Boolean.new.cast(params.dig(:user, :active))
@@ -66,7 +74,7 @@ module Admin
       saved = false
 
       User.transaction do
-        if @user.save && sync_account_memberships
+        if admin_managed_user_valid? && @user.save && sync_account_memberships
           saved = true
         else
           raise ActiveRecord::Rollback
@@ -74,6 +82,14 @@ module Admin
       end
 
       saved
+    end
+
+    def admin_managed_user_valid?
+      @user.valid?
+      if @invalid_role_value.present? && @user.errors[:role].blank?
+        @user.errors.add(:role, "is not included in the list")
+      end
+      @user.errors.empty?
     end
 
     def sync_account_memberships
