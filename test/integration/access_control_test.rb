@@ -333,6 +333,49 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     assert_select "input[name='user[account_ids][]'][value='#{@owner_b_account.id}'][checked='checked']", count: 0
   end
 
+  test "admin user forms use the same active account list as owners index" do
+    setup_access_records
+    internal_account = create_account(name: "Hayes Yacht Company", account_type: "internal")
+    inactive_account = create_account(name: "Carter and Vale")
+    inactive_account.update!(active: false)
+    expected_account_ids = Account.active.ordered.pluck(:id)
+
+    sign_in_as @admin
+
+    get owners_path
+    assert_response :success
+    expected_account_ids.each do |account_id|
+      assert_includes response.body, Account.find(account_id).name
+    end
+    assert_not_includes response.body, inactive_account.name
+
+    get new_admin_user_path
+    assert_response :success
+    assert_equal expected_account_ids, admin_user_form_account_ids
+    assert_includes response.body, internal_account.name
+    assert_not_includes response.body, inactive_account.name
+
+    get edit_admin_user_path(@owner_a_user)
+    assert_response :success
+    assert_equal expected_account_ids, admin_user_form_account_ids
+    assert_includes response.body, internal_account.name
+    assert_not_includes response.body, inactive_account.name
+
+    assert_no_difference -> { @owner_a_user.account_memberships.where(account: inactive_account).count } do
+      patch admin_user_path(@owner_a_user), params: {
+        user: {
+          name: @owner_a_user.name,
+          email_address: @owner_a_user.email_address,
+          role: "owner",
+          active: "1",
+          password: "",
+          password_confirmation: "",
+          account_ids: [ @owner_a_account.id, inactive_account.id ]
+        }
+      }
+    end
+  end
+
   test "internal user account access params do not create memberships" do
     setup_access_records
     sign_in_as @admin
@@ -557,5 +600,9 @@ class AccessControlTest < ActionDispatch::IntegrationTest
       visit_date: Date.current,
       summary: "Other owner report"
     )
+  end
+
+  def admin_user_form_account_ids
+    css_select("input[name='user[account_ids][]']").map { |input| input["value"].to_i }
   end
 end

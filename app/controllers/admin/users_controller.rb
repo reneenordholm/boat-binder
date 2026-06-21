@@ -44,7 +44,7 @@ module Admin
     end
 
     def set_accounts
-      @accounts = Account.client.ordered
+      @accounts = account_access_scope
     end
 
     def user_params
@@ -99,7 +99,7 @@ module Admin
       end
 
       selected_account_ids = Array(params.dig(:user, :account_ids)).compact_blank.map(&:to_i)
-      selected_accounts = Account.client.where(id: selected_account_ids)
+      selected_accounts = account_access_scope.where(id: selected_account_ids)
 
       selected_accounts.find_each do |account|
         membership = @user.account_memberships.find_or_initialize_by(account: account)
@@ -114,6 +114,10 @@ module Admin
 
       @user.account_memberships.where.not(account_id: selected_account_ids).update_all(active: false, updated_at: Time.current)
       true
+    end
+
+    def account_access_scope
+      scoped_accounts.active.ordered
     end
   end
 end
