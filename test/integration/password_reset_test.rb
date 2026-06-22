@@ -70,14 +70,27 @@ class PasswordResetTest < ActionDispatch::IntegrationTest
 
   test "password reset email uses the configured app host for reset links" do
     original_options = PasswordsMailer.default_url_options
-    PasswordsMailer.default_url_options = original_options.merge(host: "app.boat-binder.com")
+    PasswordsMailer.default_url_options = original_options.merge(host: "app.boat-binder.com", protocol: "https")
     user = create_user(email: "host-check@example.test")
 
     mail = PasswordsMailer.reset(user)
 
-    assert_includes mail_body(mail), "http://app.boat-binder.com/passwords/"
+    assert_includes mail_body(mail), "https://app.boat-binder.com/passwords/"
   ensure
     PasswordsMailer.default_url_options = original_options
+  end
+
+  test "password reset email uses configured default sender" do
+    original_options = Rails.application.config.action_mailer.default_options
+    Rails.application.config.action_mailer.default_options = (original_options || {}).merge(from: "Boat Binder <no-reply@example.test>")
+    user = create_user(email: "sender-check@example.test")
+
+    mail = PasswordsMailer.reset(user)
+
+    assert_equal [ "no-reply@example.test" ], mail.from
+    assert_equal [ "Boat Binder" ], mail[:from].addrs.map(&:display_name)
+  ensure
+    Rails.application.config.action_mailer.default_options = original_options
   end
 
   private

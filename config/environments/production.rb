@@ -53,26 +53,25 @@ Rails.application.configure do
   config.active_job.queue_adapter = :solid_queue
   config.solid_queue.connects_to = { database: { writing: :queue } }
 
-  # Ignore bad email addresses and do not raise email delivery errors.
-  # Set this to true and configure the email server for immediate delivery to raise delivery errors.
-  # config.action_mailer.raise_delivery_errors = false
+  # Raise delivery errors so password reset delivery can log failures without returning a 500.
+  config.action_mailer.raise_delivery_errors = true
 
   # Set host to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options = { host: ENV.fetch("APP_HOST", "app.boat-binder.com") }
+  config.action_mailer.default_url_options = { host: ENV.fetch("APP_HOST"), protocol: "https" }
 
-  # Password reset emails require SMTP settings or an email provider before they
-  # can be delivered from production. Do not hardcode credentials; configure
-  # SMTP with environment variables such as SMTP_HOST, SMTP_PORT, SMTP_USERNAME,
-  # SMTP_PASSWORD, SMTP_DOMAIN, and SMTP_FROM when an email provider is chosen.
-  # config.action_mailer.smtp_settings = {
-  #   address: ENV.fetch("SMTP_HOST"),
-  #   port: ENV.fetch("SMTP_PORT", 587),
-  #   user_name: ENV.fetch("SMTP_USERNAME"),
-  #   password: ENV.fetch("SMTP_PASSWORD"),
-  #   domain: ENV.fetch("SMTP_DOMAIN", ENV.fetch("APP_HOST", "app.boat-binder.com")),
-  #   authentication: :plain
-  # }
-  # config.action_mailer.default_options = { from: ENV.fetch("SMTP_FROM") }
+  # Mailgun SMTP is configured through Heroku config vars. Do not hardcode or
+  # commit credentials.
+  config.action_mailer.delivery_method = :smtp
+  config.action_mailer.default_options = { from: ENV.fetch("MAIL_FROM") }
+  config.action_mailer.smtp_settings = {
+    address: ENV.fetch("SMTP_ADDRESS"),
+    port: Integer(ENV.fetch("SMTP_PORT")),
+    domain: ENV.fetch("SMTP_DOMAIN"),
+    user_name: ENV.fetch("SMTP_USERNAME"),
+    password: ENV.fetch("SMTP_PASSWORD"),
+    authentication: :plain,
+    enable_starttls_auto: true
+  }
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
   # the I18n.default_locale when a translation cannot be found).
