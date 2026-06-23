@@ -17,7 +17,11 @@
             <p class="mt-1 text-sm text-slate-600"><%= user.email_address %></p>
             <div class="mt-2 flex flex-wrap gap-2">
               <%= status_chip(user.role.humanize, tone: user.internal? ? :success : :neutral) %>
-              <%= status_chip(user.active? ? "Active" : "Inactive", tone: user.active? ? :success : :warning) %>
+              <% if user.invitation_pending? %>
+                <%= status_chip("Invitation pending", tone: :warning) %>
+              <% else %>
+                <%= status_chip(user.active? ? "Active" : "Inactive", tone: user.active? ? :success : :warning) %>
+              <% end %>
             </div>
           </div>
           <%= link_to "Edit", edit_admin_user_path(user), class: "inline-flex min-h-10 items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-sm font-bold text-white" %>

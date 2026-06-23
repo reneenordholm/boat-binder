@@ -1,6 +1,7 @@
 Rails.application.routes.draw do
   resource :session
   resources :passwords, param: :token
+  resources :invitations, only: %i[edit update], param: :token
 
   root "dashboard#index"
 
