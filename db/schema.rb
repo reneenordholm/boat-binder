@@ -248,7 +248,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_23_090000) do
     t.datetime "invitation_accepted_at"
     t.datetime "invitation_sent_at"
     t.string "name"
-    t.string "password_digest", null: false
+    t.string "password_digest"
     t.string "role", default: "captain", null: false
     t.datetime "updated_at", null: false
     t.index ["active"], name: "index_users_on_active"

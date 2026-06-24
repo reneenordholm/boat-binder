@@ -32,6 +32,8 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
     assert_redirected_to admin_users_path
     assert invited_user.invitation_pending?
     assert_not invited_user.active?
+    assert_nil invited_user.password_digest
+    assert_not invited_user.authenticate("anything")
     assert_equal [ account.id ], invited_user.account_memberships.active.pluck(:account_id)
 
     mail = ActionMailer::Base.deliveries.last
@@ -95,10 +97,11 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
 
   test "pending invited users cannot sign in before accepting" do
     invited_user = create_invited_user
+    assert_nil invited_user.password_digest
 
     post session_path, params: {
       email_address: invited_user.email_address,
-      password: "temporary-password"
+      password: "anything"
     }
 
     assert_redirected_to new_session_path
@@ -162,8 +165,7 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
       role: "owner",
       active: false,
       invitation_sent_at: Time.current,
-      password: "temporary-password",
-      password_confirmation: "temporary-password"
+      password_digest: nil
     )
   end
 

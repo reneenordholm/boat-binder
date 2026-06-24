@@ -2,7 +2,7 @@ class User < ApplicationRecord
   ROLES = %w[admin captain owner].freeze
   INVITATION_EXPIRES_IN = 7.days
 
-  has_secure_password
+  has_secure_password validations: false
   generates_token_for :invitation, expires_in: INVITATION_EXPIRES_IN do
     [ invitation_sent_at&.to_i, invitation_accepted_at&.to_i, active? ]
   end
@@ -18,6 +18,8 @@ class User < ApplicationRecord
   validates :email_address, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :role, inclusion: { in: ROLES }
   validates :name, length: { maximum: 120 }
+  validates :password, confirmation: true, length: { maximum: 72 }, allow_nil: true
+  validate :password_digest_required_unless_pending_invitation
 
   def email
     email_address
@@ -51,5 +53,14 @@ class User < ApplicationRecord
 
   def invitation_accepted?
     invitation_accepted_at.present?
+  end
+
+  private
+
+  def password_digest_required_unless_pending_invitation
+    return if password_digest.present?
+    return if invitation_pending? && !active?
+
+    errors.add(:password, "can't be blank")
   end
 end

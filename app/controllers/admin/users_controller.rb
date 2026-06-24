@@ -82,9 +82,6 @@ module Admin
     end
 
     def prepare_invitation
-      invitation_password = SecureRandom.base58(48)
-      @user.password = invitation_password
-      @user.password_confirmation = invitation_password
       @user.active = false
       @user.invitation_sent_at = Time.current
       @user.invitation_accepted_at = nil
