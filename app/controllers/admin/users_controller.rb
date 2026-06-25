@@ -74,6 +74,8 @@ module Admin
     end
 
     def send_invitation?
+      return @send_invitation unless @send_invitation.nil?
+
       @send_invitation = if params.dig(:user, :send_invitation).nil?
         @user.new_record? && params.dig(:user, :password).blank?
       else

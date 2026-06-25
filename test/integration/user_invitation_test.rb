@@ -63,6 +63,24 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
     assert_redirected_to root_path
   end
 
+  test "blank-password user creation defaults to invitation consistently after save" do
+    sign_in_as @admin
+
+    assert_difference -> { User.count }, 1 do
+      assert_difference -> { ActionMailer::Base.deliveries.size }, 1 do
+        post admin_users_path, params: {
+          user: invite_params(email_address: "default-invited@example.test").except(:send_invitation)
+        }
+      end
+    end
+
+    invited_user = User.find_by!(email_address: "default-invited@example.test")
+    assert_redirected_to admin_users_path
+    assert_equal "User invited.", flash[:notice]
+    assert invited_user.invitation_pending?
+    assert_nil invited_user.password_digest
+  end
+
   test "accepted invitation cannot be reused" do
     invited_user = create_invited_user
     token = invited_user.generate_token_for(:invitation)
@@ -93,6 +111,36 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_session_path
     follow_redirect!
     assert_includes response.body, InvitationsController::INVITATION_INVALID_MESSAGE
+  end
+
+  test "re-sent invitation within the same second invalidates the previous token" do
+    invited_user = create_invited_user
+    first_sent_at = Time.zone.local(2026, 6, 24, 12, 0, 0, 100_000)
+    second_sent_at = Time.zone.local(2026, 6, 24, 12, 0, 0, 900_000)
+    invited_user.update!(invitation_sent_at: first_sent_at)
+    old_token = invited_user.generate_token_for(:invitation)
+
+    invited_user.update!(invitation_sent_at: second_sent_at)
+
+    get edit_invitation_path(old_token)
+    assert_redirected_to new_session_path
+    follow_redirect!
+    assert_includes response.body, InvitationsController::INVITATION_INVALID_MESSAGE
+
+    get edit_invitation_path(invited_user.generate_token_for(:invitation))
+    assert_response :success
+  end
+
+  test "active users are not invitation pending even when invitation timestamp remains" do
+    invited_user = create_invited_user
+    invited_user.update!(
+      active: true,
+      invitation_accepted_at: nil,
+      password: "active-password",
+      password_confirmation: "active-password"
+    )
+
+    assert_not invited_user.invitation_pending?
   end
 
   test "pending invited users cannot sign in before accepting" do

@@ -4,7 +4,7 @@ class User < ApplicationRecord
 
   has_secure_password validations: false
   generates_token_for :invitation, expires_in: INVITATION_EXPIRES_IN do
-    [ invitation_sent_at&.to_i, invitation_accepted_at&.to_i, active? ]
+    [ invitation_sent_at&.to_f, invitation_accepted_at&.to_f, active? ]
   end
 
   has_many :sessions, dependent: :destroy
@@ -48,7 +48,7 @@ class User < ApplicationRecord
   end
 
   def invitation_pending?
-    invitation_sent_at.present? && invitation_accepted_at.blank?
+    invitation_sent_at.present? && invitation_accepted_at.blank? && !active?
   end
 
   def invitation_accepted?
