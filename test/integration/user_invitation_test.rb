@@ -81,6 +81,72 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
     assert_nil invited_user.password_digest
   end
 
+  test "invitation delivery failure shows accurate alert instead of invited notice" do
+    sign_in_as @admin
+    failed_delivery = Object.new
+    failed_delivery.define_singleton_method(:deliver_now) do
+      raise Errno::ECONNREFUSED, "connect(2) for localhost port 25"
+    end
+    original_invite = UserInvitationsMailer.method(:invite)
+    UserInvitationsMailer.define_singleton_method(:invite) { |_user| failed_delivery }
+
+    assert_difference -> { User.count }, 1 do
+      assert_no_difference -> { ActionMailer::Base.deliveries.size } do
+        post admin_users_path, params: {
+          user: invite_params(email_address: "delivery-failed@example.test")
+        }
+      end
+    end
+
+    invited_user = User.find_by!(email_address: "delivery-failed@example.test")
+    assert invited_user.invitation_pending?
+    assert_redirected_to admin_users_path
+    assert_equal Admin::UsersController::INVITATION_DELIVERY_FAILURE_MESSAGE, flash[:alert]
+    assert_not_equal "User invited.", flash[:notice]
+  ensure
+    UserInvitationsMailer.define_singleton_method(:invite, original_invite) if original_invite
+  end
+
+  test "manual user creation with password creates active user by default" do
+    sign_in_as @admin
+
+    post admin_users_path, params: {
+      user: invite_params(
+        email_address: "manual-active@example.test",
+        send_invitation: "0",
+        password: "manual-password",
+        password_confirmation: "manual-password"
+      ).except(:active)
+    }
+
+    user = User.find_by!(email_address: "manual-active@example.test")
+    assert_redirected_to admin_users_path
+    assert_equal "User added.", flash[:notice]
+    assert user.active?
+    assert_not user.invitation_pending?
+    assert user.authenticate("manual-password")
+  end
+
+  test "manual user creation can still be explicitly inactive" do
+    sign_in_as @admin
+
+    post admin_users_path, params: {
+      user: invite_params(
+        email_address: "manual-inactive@example.test",
+        active: "0",
+        send_invitation: "0",
+        password: "manual-password",
+        password_confirmation: "manual-password"
+      )
+    }
+
+    user = User.find_by!(email_address: "manual-inactive@example.test")
+    assert_redirected_to admin_users_path
+    assert_not user.active?
+    assert_not user.invitation_pending?
+    assert user.authenticate("manual-password")
+  end
+
   test "accepted invitation cannot be reused" do
     invited_user = create_invited_user
     token = invited_user.generate_token_for(:invitation)

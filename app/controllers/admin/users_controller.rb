@@ -1,5 +1,7 @@
 module Admin
   class UsersController < ApplicationController
+    INVITATION_DELIVERY_FAILURE_MESSAGE = "User was created, but the invitation email could not be sent. Check email configuration."
+
     before_action :require_admin!
     before_action :set_user, only: %i[edit update]
     before_action :set_accounts, only: %i[new create edit update]
@@ -19,8 +21,15 @@ module Admin
       prepare_invitation if send_invitation?
 
       if save_user_with_memberships
-        deliver_invitation if send_invitation?
-        redirect_to admin_users_path, notice: send_invitation? ? "User invited." : "User added."
+        if send_invitation?
+          if deliver_invitation
+            redirect_to admin_users_path, notice: "User invited."
+          else
+            redirect_to admin_users_path, alert: INVITATION_DELIVERY_FAILURE_MESSAGE
+          end
+        else
+          redirect_to admin_users_path, notice: "User added."
+        end
       else
         render :new, status: :unprocessable_entity
       end
@@ -92,11 +101,12 @@ module Admin
     def deliver_invitation
       UserInvitationsMailer.invite(@user).deliver_now
       Rails.logger.info("Invitation email delivered for user_id=#{@user.id}")
+      true
     rescue *ApplicationMailer::DELIVERY_ERRORS => error
       Rails.logger.error(
         "Invitation email delivery failed for user_id=#{@user.id}: #{error.class}: #{error.message}"
       )
-      flash[:alert] = "User was created, but the invitation email could not be sent. Check email configuration."
+      false
     end
 
     def save_user_with_memberships
