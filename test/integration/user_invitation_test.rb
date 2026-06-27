@@ -167,6 +167,24 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
     assert user.authenticate("manual-password")
   end
 
+  test "manual user creation with blank password fails" do
+    sign_in_as @admin
+
+    assert_no_difference -> { User.count } do
+      post admin_users_path, params: {
+        user: invite_params(
+          email_address: "manual-blank-password@example.test",
+          send_invitation: "0",
+          password: "",
+          password_confirmation: ""
+        )
+      }
+    end
+
+    assert_response :unprocessable_entity
+    assert_includes response.body, "Password can&#39;t be blank"
+  end
+
   test "manual user creation can still be explicitly inactive" do
     sign_in_as @admin
 
@@ -185,6 +203,21 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
     assert_not user.active?
     assert_not user.invitation_pending?
     assert user.authenticate("manual-password")
+  end
+
+  test "invitation acceptance with blank password fails" do
+    invited_user = create_invited_user
+    token = invited_user.generate_token_for(:invitation)
+
+    put invitation_path(token), params: {
+      password: "",
+      password_confirmation: ""
+    }
+
+    assert_response :unprocessable_entity
+    assert_not invited_user.reload.active?
+    assert invited_user.invitation_pending?
+    assert_nil invited_user.password_digest
   end
 
   test "accepted invitation cannot be reused" do

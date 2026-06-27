@@ -19,7 +19,7 @@ class User < ApplicationRecord
   validates :email_address, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :role, inclusion: { in: ROLES }
   validates :name, length: { maximum: 120 }
-  validates :password, confirmation: true, length: { maximum: 72 }, allow_nil: true
+  validates :password, presence: true, confirmation: true, length: { maximum: 72 }, allow_nil: true
   validate :password_digest_required_unless_pending_invitation
 
   def email
