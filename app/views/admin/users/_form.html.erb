@@ -26,7 +26,7 @@
       <%= form.select :role, User::ROLES.map { |role| [role.humanize, role] }, {}, class: "mt-2 min-h-12 w-full rounded-md border border-slate-300 px-4 py-3 text-base", data: { role_access_target: "role", action: "role-access#refresh" } %>
     </div>
     <label class="flex min-h-12 items-center gap-3 rounded-md border border-slate-300 px-4 py-3">
-      <%= form.check_box :active, { checked: @user.persisted? ? @user.active? : true, class: "h-5 w-5 rounded border-slate-300 text-cyan-700" }, "1", "0" %>
+      <%= form.check_box :active, class: "h-5 w-5 rounded border-slate-300 text-cyan-700" %>
       <span class="text-sm font-bold text-slate-700">Active user</span>
     </label>
   </section>

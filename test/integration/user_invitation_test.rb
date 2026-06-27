@@ -81,6 +81,45 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
     assert_nil invited_user.password_digest
   end
 
+  test "new invitation form reflects inactive model value" do
+    sign_in_as @admin
+
+    get new_admin_user_path
+
+    assert_response :success
+    assert_select "input[type=checkbox][name='user[send_invitation]'][checked]"
+    assert_select "input[type=checkbox][name='user[active]']" do |elements|
+      assert_nil elements.first["checked"]
+    end
+  end
+
+  test "invited user clears submitted password fields" do
+    sign_in_as @admin
+
+    assert_difference -> { User.count }, 1 do
+      assert_difference -> { ActionMailer::Base.deliveries.size }, 1 do
+        post admin_users_path, params: {
+          user: invite_params(
+            email_address: "password-cleared@example.test",
+            password: "admin-entered-password",
+            password_confirmation: "admin-entered-password"
+          )
+        }
+      end
+    end
+
+    invited_user = User.find_by!(email_address: "password-cleared@example.test")
+    assert_not invited_user.active?
+    assert invited_user.invitation_pending?
+    assert_not invited_user.invitation_accepted?
+    assert_not_nil invited_user.invitation_sent_at
+    assert_nil invited_user.invitation_accepted_at
+    assert_nil invited_user.password
+    assert_nil invited_user.password_confirmation
+    assert_nil invited_user.password_digest
+    assert_not invited_user.authenticate("admin-entered-password")
+  end
+
   test "invitation delivery failure shows accurate alert instead of invited notice" do
     sign_in_as @admin
     failed_delivery = Object.new

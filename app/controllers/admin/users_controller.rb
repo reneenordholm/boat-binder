@@ -96,6 +96,9 @@ module Admin
       @user.active = false
       @user.invitation_sent_at = Time.current
       @user.invitation_accepted_at = nil
+      @user.password = nil
+      @user.password_confirmation = nil
+      @user.password_digest = nil
     end
 
     def deliver_invitation
