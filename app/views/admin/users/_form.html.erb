@@ -9,7 +9,7 @@
         <%= check_box_tag "user[send_invitation]", "1", @send_invitation, class: "mt-1 h-5 w-5 rounded border-slate-300 text-cyan-700" %>
         <span>
           <span class="block text-sm font-bold text-slate-900">Send invitation email</span>
-          <span class="mt-1 block text-sm leading-6 text-slate-600">The user will set their own password from a secure link. Invited users remain inactive until they accept.</span>
+          <span class="mt-1 block text-sm leading-6 text-slate-600">The user will set their own password from a secure link. Invited users are created inactive, the Active user checkbox is ignored while sending an invitation, and users become active after accepting.</span>
         </span>
       </label>
     <% end %>
