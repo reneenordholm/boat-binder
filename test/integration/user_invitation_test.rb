@@ -81,7 +81,7 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
     assert_nil invited_user.password_digest
   end
 
-  test "new invitation form reflects inactive model value" do
+  test "new admin user form defaults manual users active" do
     sign_in_as @admin
 
     get new_admin_user_path
@@ -89,7 +89,7 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "input[type=checkbox][name='user[send_invitation]'][checked]"
     assert_select "input[type=checkbox][name='user[active]']" do |elements|
-      assert_nil elements.first["checked"]
+      assert_equal "checked", elements.first["checked"]
     end
   end
 
@@ -155,7 +155,7 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
         send_invitation: "0",
         password: "manual-password",
         password_confirmation: "manual-password"
-      ).except(:active)
+      )
     }
 
     user = User.find_by!(email_address: "manual-active@example.test")
@@ -197,6 +197,18 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to root_path
     delete session_path
+
+    get edit_invitation_path(token)
+
+    assert_redirected_to new_session_path
+    follow_redirect!
+    assert_includes response.body, InvitationsController::INVITATION_INVALID_MESSAGE
+  end
+
+  test "deleted invitation user redirects gracefully" do
+    invited_user = create_invited_user
+    token = invited_user.generate_token_for(:invitation)
+    invited_user.destroy!
 
     get edit_invitation_path(token)
 

@@ -24,7 +24,7 @@ class InvitationsController < ApplicationController
     def set_user_by_invitation
       @token = params[:token]
       @user = User.find_by_token_for!(:invitation, @token)
-    rescue ActiveSupport::MessageVerifier::InvalidSignature
+    rescue ActiveSupport::MessageVerifier::InvalidSignature, ActiveRecord::RecordNotFound
       redirect_to new_session_path, alert: INVITATION_INVALID_MESSAGE
     end
 

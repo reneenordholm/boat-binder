@@ -1,8 +1,9 @@
 class User < ApplicationRecord
   ROLES = %w[admin captain owner].freeze
   INVITATION_EXPIRES_IN = 7.days
+  PASSWORD_RESET_EXPIRES_IN = 15.minutes
 
-  has_secure_password validations: false
+  has_secure_password validations: false, reset_token: { expires_in: PASSWORD_RESET_EXPIRES_IN }
   generates_token_for :invitation, expires_in: INVITATION_EXPIRES_IN do
     [ invitation_sent_at&.to_f, invitation_accepted_at&.to_f, active? ]
   end

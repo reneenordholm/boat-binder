@@ -12,7 +12,7 @@ module Admin
 
     def new
       @send_invitation = true
-      @user = User.new(role: "owner", active: false, invitation_sent_at: Time.current)
+      @user = User.new(role: "owner", active: true)
     end
 
     def create

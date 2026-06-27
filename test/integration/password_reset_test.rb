@@ -28,6 +28,18 @@ class PasswordResetTest < ActionDispatch::IntegrationTest
     assert_includes mail_body(mail), "http://example.com/passwords/"
   end
 
+  test "password reset token lookup finds the reset user" do
+    user = create_user(email: "token-lookup@example.test")
+    token = user.password_reset_token
+
+    assert_equal User::PASSWORD_RESET_EXPIRES_IN, user.password_reset_token_expires_in
+    assert_equal user, User.find_by_password_reset_token!(token)
+
+    get edit_password_path(token)
+
+    assert_response :success
+  end
+
   test "password reset request keeps generic messaging when email is unknown" do
     assert_no_difference -> { ActionMailer::Base.deliveries.size } do
       post passwords_path, params: { email_address: "missing@example.test" }
