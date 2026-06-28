@@ -1,6 +1,6 @@
 <%= field_error_messages(@user) %>
 
-<% active_checked = defined?(@active_checked) && !@active_checked.nil? ? @active_checked : @user.active? %>
+<% active_checked = @active_checked.nil? ? @user.active? : @active_checked %>
 <% invitation_password_disabled = !@user.persisted? && @send_invitation %>
 
 <%= form_with model: [:admin, @user], class: "space-y-5", data: { controller: "role-access admin-user-form" } do |form| %>
