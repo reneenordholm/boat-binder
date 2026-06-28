@@ -4,9 +4,9 @@ class ServiceVisitsController < ApplicationController
 
   def index
     @service_visits = if @vessel
-      @vessel.service_visits.includes(:performed_by_user, asset: :account).recent
+      @vessel.service_visits.includes(*service_visit_includes).recent
     else
-      scoped_service_visits.includes(:performed_by_user, asset: :account).recent
+      scoped_service_visits.includes(*service_visit_includes).recent
     end
   end
 
@@ -47,6 +47,16 @@ class ServiceVisitsController < ApplicationController
   end
 
   private
+
+  def service_visit_includes
+    [
+      :performed_by_user,
+      :service_visit_inspection_checks,
+      asset: :account,
+      service_visit_engine_readings: :asset_engine,
+      service_visit_battery_checks: :asset_battery
+    ]
+  end
 
   def set_vessel
     @vessel = scoped_vessels.find_by!(slug: params[:vessel_id])
