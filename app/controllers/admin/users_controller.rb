@@ -1,5 +1,7 @@
 module Admin
   class UsersController < ApplicationController
+    INVITATION_DELIVERY_FAILURE_MESSAGE = "User was created, but the invitation email could not be sent. Check email configuration."
+
     before_action :require_admin!
     before_action :set_user, only: %i[edit update]
     before_action :set_accounts, only: %i[new create edit update]
@@ -9,15 +11,25 @@ module Admin
     end
 
     def new
+      @send_invitation = true
       @user = User.new(role: "owner", active: true)
     end
 
     def create
       @user = User.new(user_params)
       assign_admin_managed_user_attributes(@user)
+      prepare_invitation if send_invitation?
 
       if save_user_with_memberships
-        redirect_to admin_users_path, notice: "User added."
+        if send_invitation?
+          if deliver_invitation
+            redirect_to admin_users_path, notice: "User invited."
+          else
+            redirect_to admin_users_path, alert: INVITATION_DELIVERY_FAILURE_MESSAGE
+          end
+        else
+          redirect_to admin_users_path, notice: "User added."
+        end
       else
         render :new, status: :unprocessable_entity
       end
@@ -68,6 +80,36 @@ module Admin
       return unless params.dig(:user, :active)
 
       user.active = ActiveModel::Type::Boolean.new.cast(params.dig(:user, :active))
+    end
+
+    def send_invitation?
+      return @send_invitation unless @send_invitation.nil?
+
+      @send_invitation = if params.dig(:user, :send_invitation).nil?
+        @user.new_record? && params.dig(:user, :password).blank?
+      else
+        ActiveModel::Type::Boolean.new.cast(params.dig(:user, :send_invitation))
+      end
+    end
+
+    def prepare_invitation
+      @user.active = false
+      @user.invitation_sent_at = Time.current
+      @user.invitation_accepted_at = nil
+      @user.password = nil
+      @user.password_confirmation = nil
+      @user.password_digest = nil
+    end
+
+    def deliver_invitation
+      UserInvitationsMailer.invite(@user).deliver_now
+      Rails.logger.info("Invitation email delivered for user_id=#{@user.id}")
+      true
+    rescue *ApplicationMailer::DELIVERY_ERRORS => error
+      Rails.logger.error(
+        "Invitation email delivery failed for user_id=#{@user.id}: #{error.class}: #{error.message}"
+      )
+      false
     end
 
     def save_user_with_memberships

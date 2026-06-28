@@ -1,12 +1,5 @@
 class PasswordsController < ApplicationController
   RESET_REQUEST_NOTICE = "If an account exists for that email, reset instructions will be sent shortly."
-  MAIL_DELIVERY_ERRORS = [
-    Net::SMTPError,
-    IOError,
-    SocketError,
-    SystemCallError,
-    Timeout::Error
-  ].freeze
 
   allow_unauthenticated_access
   before_action :set_user_by_token, only: %i[ edit update ]
@@ -39,7 +32,7 @@ class PasswordsController < ApplicationController
     def deliver_password_reset(user)
       PasswordsMailer.reset(user).deliver_now
       Rails.logger.info("Password reset email delivered for user_id=#{user.id}")
-    rescue *MAIL_DELIVERY_ERRORS => error
+    rescue *ApplicationMailer::DELIVERY_ERRORS => error
       Rails.logger.error(
         "Password reset email delivery failed for user_id=#{user.id}: #{error.class}: #{error.message}"
       )

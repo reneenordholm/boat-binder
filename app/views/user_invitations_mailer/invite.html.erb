@@ -1,0 +1,7 @@
+<p>Hello<%= " #{@user.name}" if @user.name.present? %>,</p>
+
+<p>You have been invited to access Boat Binder. Set your password to finish setting up your account.</p>
+
+<p><%= link_to "Accept your invitation", @invitation_url %></p>
+
+<p>This invitation expires in <%= distance_of_time_in_words(0, User::INVITATION_EXPIRES_IN) %>.</p>
