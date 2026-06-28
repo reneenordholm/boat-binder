@@ -60,7 +60,7 @@ class User < ApplicationRecord
 
   def password_digest_required_unless_pending_invitation
     return if password_digest.present?
-    return if invitation_pending? && !active?
+    return if invitation_pending?
 
     errors.add(:password, "can't be blank")
   end
