@@ -12,11 +12,13 @@ module Admin
 
     def new
       @send_invitation = true
+      @active_checked = true
       @user = User.new(role: "owner", active: true)
     end
 
     def create
       @user = User.new(user_params)
+      @active_checked = active_checkbox_checked?
       assign_admin_managed_user_attributes(@user)
       prepare_invitation if send_invitation?
 
@@ -90,6 +92,13 @@ module Admin
       else
         ActiveModel::Type::Boolean.new.cast(params.dig(:user, :send_invitation))
       end
+    end
+
+    def active_checkbox_checked?
+      return true unless params.key?(:user)
+      return true unless params[:user].key?(:active)
+
+      ActiveModel::Type::Boolean.new.cast(params.dig(:user, :active))
     end
 
     def prepare_invitation
