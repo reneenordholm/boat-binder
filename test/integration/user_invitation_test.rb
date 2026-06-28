@@ -264,7 +264,7 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
     assert_includes response.body, InvitationsController::INVITATION_INVALID_MESSAGE
   end
 
-  test "re-sent invitation within the same second invalidates the previous token" do
+  test "invitation token uses subsecond sent timestamp" do
     invited_user = create_invited_user
     first_sent_at = Time.zone.local(2026, 6, 24, 12, 0, 0, 100_000)
     second_sent_at = Time.zone.local(2026, 6, 24, 12, 0, 0, 900_000)
