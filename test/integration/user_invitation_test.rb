@@ -88,10 +88,13 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_includes response.body, "the Active user checkbox is ignored while sending an invitation"
+    assert_includes response.body, "manual password fields are disabled while Send invitation email is checked"
     assert_select "input[type=checkbox][name='user[send_invitation]'][checked]"
     assert_select "input[type=checkbox][name='user[active]']" do |elements|
       assert_equal "checked", elements.first["checked"]
     end
+    assert_select "input[type=password][name='user[password]'][disabled]"
+    assert_select "input[type=password][name='user[password_confirmation]'][disabled]"
   end
 
   test "invited user clears submitted password fields" do
@@ -165,6 +168,65 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
     assert user.active?
     assert_not user.invitation_pending?
     assert user.authenticate("manual-password")
+  end
+
+  test "manual duplicate email error preserves active checkbox and corrected resubmit creates active user" do
+    existing_user = create_user(email: "duplicate-manual@example.test")
+    sign_in_as @admin
+
+    assert_no_difference -> { User.count } do
+      post admin_users_path, params: {
+        user: invite_params(
+          email_address: existing_user.email_address,
+          send_invitation: "0",
+          password: "manual-password",
+          password_confirmation: "manual-password"
+        )
+      }
+    end
+
+    assert_response :unprocessable_entity
+    assert_includes response.body, "Email address has already been taken"
+    assert_select "input[type=checkbox][name='user[send_invitation]'][checked]", count: 0
+    assert_select "input[type=checkbox][name='user[active]']" do |elements|
+      assert_equal "checked", elements.first["checked"]
+    end
+    assert_select "input[type=password][name='user[password]'][disabled]", count: 0
+    assert_select "input[type=password][name='user[password_confirmation]'][disabled]", count: 0
+
+    post admin_users_path, params: {
+      user: invite_params(
+        email_address: "corrected-manual@example.test",
+        send_invitation: "0",
+        password: "manual-password",
+        password_confirmation: "manual-password"
+      )
+    }
+
+    user = User.find_by!(email_address: "corrected-manual@example.test")
+    assert_redirected_to admin_users_path
+    assert user.active?
+    assert user.authenticate("manual-password")
+  end
+
+  test "invitation validation error keeps active checkbox checked while passwords stay disabled" do
+    existing_user = create_user(email: "duplicate-invite@example.test")
+    sign_in_as @admin
+
+    assert_no_difference -> { User.count } do
+      post admin_users_path, params: {
+        user: invite_params(email_address: existing_user.email_address)
+      }
+    end
+
+    assert_response :unprocessable_entity
+    assert_includes response.body, "Email address has already been taken"
+    assert_select "input[type=checkbox][name='user[send_invitation]'][checked]"
+    assert_select "input[type=checkbox][name='user[active]']" do |elements|
+      assert_equal "checked", elements.first["checked"]
+    end
+    assert_select "input[type=password][name='user[password]'][disabled]"
+    assert_select "input[type=password][name='user[password_confirmation]'][disabled]"
   end
 
   test "manual user creation with blank password fails" do
