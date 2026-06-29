@@ -70,7 +70,7 @@ module ApplicationHelper
   end
 
   def service_visit_engine_hour_summary(visit)
-    readings = visit.service_visit_engine_readings.select { |reading| reading.hours.present? }
+    readings = visit.ordered_engine_readings.select { |reading| reading.hours.present? }
 
     if readings.any?
       readings.map do |reading|

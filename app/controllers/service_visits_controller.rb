@@ -55,8 +55,7 @@ class ServiceVisitsController < ApplicationController
       :performed_by_user,
       :service_visit_inspection_checks,
       asset: :account,
-      service_visit_engine_readings: :asset_engine,
-      service_visit_battery_checks: :asset_battery
+      service_visit_engine_readings: :asset_engine
     ]
   end
 
