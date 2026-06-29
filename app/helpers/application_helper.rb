@@ -57,6 +57,32 @@ module ApplicationHelper
     "rounded-md px-3 py-2 text-sm font-black text-[#1E5A7A] transition hover:bg-[#E8F3F5] #{extra}".squish
   end
 
+  def service_visit_checked_count(visit)
+    visit.service_visit_inspection_checks.count(&:checked?)
+  end
+
+  def service_visit_total_check_count(visit)
+    visit.service_visit_inspection_checks.size
+  end
+
+  def service_visit_battery_check_count(visit)
+    visit.service_visit_battery_checks.count(&:checked?)
+  end
+
+  def service_visit_engine_hour_summary(visit)
+    readings = visit.ordered_engine_readings.select { |reading| reading.hours.present? }
+
+    if readings.any?
+      readings.map do |reading|
+        "#{reading.display_name}: #{number_with_precision(reading.hours, precision: 1, strip_insignificant_zeros: true)}"
+      end.to_sentence
+    elsif visit.engine_hours.present?
+      "#{number_with_precision(visit.engine_hours, precision: 1, strip_insignificant_zeros: true)} hours"
+    else
+      "Not recorded"
+    end
+  end
+
   def app_nav_items
     items = [
       [ "Dashboard", root_path, "D" ],

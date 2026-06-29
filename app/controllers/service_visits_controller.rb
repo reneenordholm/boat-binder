@@ -3,11 +3,13 @@ class ServiceVisitsController < ApplicationController
   before_action :set_vessel, if: -> { params[:vessel_id].present? }
 
   def index
-    @service_visits = if @vessel
-      @vessel.service_visits.includes(:performed_by_user, asset: :account).recent
+    service_visits = if @vessel
+      @vessel.service_visits.includes(*service_visit_includes).recent
     else
-      scoped_service_visits.includes(:performed_by_user, asset: :account).recent
+      scoped_service_visits.includes(*service_visit_includes).recent
     end
+
+    @service_visits = service_visits.load
   end
 
   def new
@@ -47,6 +49,15 @@ class ServiceVisitsController < ApplicationController
   end
 
   private
+
+  def service_visit_includes
+    [
+      :performed_by_user,
+      :service_visit_inspection_checks,
+      asset: :account,
+      service_visit_engine_readings: :asset_engine
+    ]
+  end
 
   def set_vessel
     @vessel = scoped_vessels.find_by!(slug: params[:vessel_id])
