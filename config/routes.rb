@@ -21,7 +21,9 @@ Rails.application.routes.draw do
   get "users", to: redirect("/admin/users")
 
   namespace :admin do
-    resources :users, except: %i[show destroy]
+    resources :users, except: %i[show destroy] do
+      post :resend_invitation, on: :member
+    end
   end
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.

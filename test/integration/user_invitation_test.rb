@@ -150,6 +150,114 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
     UserInvitationsMailer.define_singleton_method(:invite, original_invite) if original_invite
   end
 
+  test "admin can resend pending invitation and old token no longer works" do
+    invited_user = create_invited_user
+    original_sent_at = invited_user.invitation_sent_at
+    old_token = invited_user.generate_token_for(:invitation)
+    sign_in_as @admin
+
+    assert_difference -> { ActionMailer::Base.deliveries.size }, 1 do
+      travel 1.second do
+        post resend_invitation_admin_user_path(invited_user)
+      end
+    end
+
+    assert_redirected_to admin_users_path
+    assert_equal "Invitation resent.", flash[:notice]
+
+    invited_user.reload
+    assert invited_user.invitation_pending?
+    assert_not invited_user.active?
+    assert_nil invited_user.invitation_accepted_at
+    assert_nil invited_user.password_digest
+    assert_operator invited_user.invitation_sent_at, :>, original_sent_at
+
+    get edit_invitation_path(old_token)
+    assert_redirected_to new_session_path
+    follow_redirect!
+    assert_includes response.body, InvitationsController::INVITATION_INVALID_MESSAGE
+
+    new_token = invitation_token_from(ActionMailer::Base.deliveries.last)
+    get edit_invitation_path(new_token)
+    assert_response :success
+
+    put invitation_path(new_token), params: {
+      password: "new-password",
+      password_confirmation: "new-password"
+    }
+
+    assert_redirected_to root_path
+    assert invited_user.reload.active?
+    assert invited_user.invitation_accepted?
+    assert invited_user.authenticate("new-password")
+  end
+
+  test "admin user index shows resend action only for pending invited users" do
+    pending_user = create_invited_user
+    active_user = create_user(email: "active-resend-hidden@example.test")
+    accepted_user = create_user(email: "accepted-resend-hidden@example.test")
+    accepted_user.update!(invitation_sent_at: 1.day.ago, invitation_accepted_at: Time.current)
+    sign_in_as @admin
+
+    get admin_users_path
+
+    assert_response :success
+    assert_select "form[action='#{resend_invitation_admin_user_path(pending_user)}'] button", text: "Resend invitation"
+    assert_select "form[action='#{resend_invitation_admin_user_path(active_user)}']", count: 0
+    assert_select "form[action='#{resend_invitation_admin_user_path(accepted_user)}']", count: 0
+  end
+
+  test "non admin users cannot resend invitations" do
+    invited_user = create_invited_user
+    original_sent_at = invited_user.invitation_sent_at
+    captain = create_user(email: "captain-resend@example.test", role: "captain")
+    sign_in_as captain
+
+    assert_no_difference -> { ActionMailer::Base.deliveries.size } do
+      post resend_invitation_admin_user_path(invited_user)
+    end
+
+    assert_redirected_to root_path
+    assert_equal original_sent_at.to_i, invited_user.reload.invitation_sent_at.to_i
+  end
+
+  test "active and accepted users cannot be resent invitations" do
+    active_user = create_user(email: "active-no-resend@example.test")
+    accepted_user = create_user(email: "accepted-no-resend@example.test")
+    accepted_user.update!(invitation_sent_at: 1.day.ago, invitation_accepted_at: Time.current)
+    sign_in_as @admin
+
+    [ active_user, accepted_user ].each do |user|
+      assert_no_difference -> { ActionMailer::Base.deliveries.size } do
+        post resend_invitation_admin_user_path(user)
+      end
+
+      assert_redirected_to admin_users_path
+      assert_equal Admin::UsersController::INVITATION_RESEND_UNAVAILABLE_MESSAGE, flash[:alert]
+    end
+  end
+
+  test "resend invitation delivery failure redirects with alert" do
+    invited_user = create_invited_user
+    failed_delivery = Object.new
+    failed_delivery.define_singleton_method(:deliver_now) do
+      raise Errno::ECONNREFUSED, "connect(2) for localhost port 25"
+    end
+    original_invite = UserInvitationsMailer.method(:invite)
+    UserInvitationsMailer.define_singleton_method(:invite) { |_user| failed_delivery }
+    sign_in_as @admin
+
+    assert_no_difference -> { ActionMailer::Base.deliveries.size } do
+      post resend_invitation_admin_user_path(invited_user)
+    end
+
+    assert_redirected_to admin_users_path
+    assert_equal Admin::UsersController::INVITATION_RESEND_FAILURE_MESSAGE, flash[:alert]
+    assert_not_equal "Invitation resent.", flash[:notice]
+  ensure
+    UserInvitationsMailer.define_singleton_method(:invite, original_invite) if original_invite
+  end
+
   test "manual user creation with password creates active user by default" do
     sign_in_as @admin
 

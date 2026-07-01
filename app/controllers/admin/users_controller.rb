@@ -1,9 +1,11 @@
 module Admin
   class UsersController < ApplicationController
     INVITATION_DELIVERY_FAILURE_MESSAGE = "User was created, but the invitation email could not be sent. Check email configuration."
+    INVITATION_RESEND_FAILURE_MESSAGE = "Invitation email could not be sent. Check email configuration."
+    INVITATION_RESEND_UNAVAILABLE_MESSAGE = "Invitation can only be resent for pending invited users."
 
     before_action :require_admin!
-    before_action :set_user, only: %i[edit update]
+    before_action :set_user, only: %i[edit update resend_invitation]
     before_action :set_accounts, only: %i[new create edit update]
 
     def index
@@ -48,6 +50,21 @@ module Admin
         redirect_to admin_users_path, notice: "User updated."
       else
         render :edit, status: :unprocessable_entity
+      end
+    end
+
+    def resend_invitation
+      unless @user.invitation_pending?
+        redirect_to admin_users_path, alert: INVITATION_RESEND_UNAVAILABLE_MESSAGE
+        return
+      end
+
+      prepare_invitation
+
+      if @user.save && deliver_invitation
+        redirect_to admin_users_path, notice: "Invitation resent."
+      else
+        redirect_to admin_users_path, alert: INVITATION_RESEND_FAILURE_MESSAGE
       end
     end
 
