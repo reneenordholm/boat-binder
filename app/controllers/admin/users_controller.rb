@@ -1,9 +1,11 @@
 module Admin
   class UsersController < ApplicationController
     INVITATION_DELIVERY_FAILURE_MESSAGE = "User was created, but the invitation email could not be sent. Check email configuration."
+    INVITATION_RESEND_FAILURE_MESSAGE = "Invitation email could not be sent. Check email configuration."
+    INVITATION_RESEND_UNAVAILABLE_MESSAGE = "Invitation can only be resent for pending invited users."
 
     before_action :require_admin!
-    before_action :set_user, only: %i[edit update]
+    before_action :set_user, only: %i[edit update resend_invitation]
     before_action :set_accounts, only: %i[new create edit update]
 
     def index
@@ -48,6 +50,19 @@ module Admin
         redirect_to admin_users_path, notice: "User updated."
       else
         render :edit, status: :unprocessable_entity
+      end
+    end
+
+    def resend_invitation
+      unless @user.invitation_pending?
+        redirect_to admin_users_path, alert: INVITATION_RESEND_UNAVAILABLE_MESSAGE
+        return
+      end
+
+      if resend_pending_invitation
+        redirect_to admin_users_path, notice: "Invitation resent."
+      else
+        redirect_to admin_users_path, alert: INVITATION_RESEND_FAILURE_MESSAGE
       end
     end
 
@@ -119,6 +134,37 @@ module Admin
         "Invitation email delivery failed for user_id=#{@user.id}: #{error.class}: #{error.message}"
       )
       false
+    end
+
+    def resend_pending_invitation
+      previous_invitation_state = invitation_resend_state
+
+      prepare_invitation
+      unless @user.save
+        restore_invitation_state(previous_invitation_state)
+        return false
+      end
+
+      return true if deliver_invitation
+
+      restore_invitation_state(previous_invitation_state)
+      false
+    end
+
+    def invitation_resend_state
+      @user.slice(:active, :invitation_sent_at, :invitation_accepted_at, :password_digest)
+    end
+
+    def restore_invitation_state(state)
+      @user.assign_attributes(state)
+
+      if @user.save
+        @user.reload
+      else
+        Rails.logger.error(
+          "Invitation resend state restore failed for user_id=#{@user.id}: #{@user.errors.full_messages.to_sentence}"
+        )
+      end
     end
 
     def save_user_with_memberships

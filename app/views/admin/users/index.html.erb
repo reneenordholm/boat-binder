@@ -24,7 +24,15 @@
               <% end %>
             </div>
           </div>
-          <%= link_to "Edit", edit_admin_user_path(user), class: "inline-flex min-h-10 items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-sm font-bold text-white" %>
+          <div class="flex flex-wrap gap-2">
+            <% if user.invitation_pending? %>
+              <%= button_to "Resend invitation",
+                  resend_invitation_admin_user_path(user),
+                  method: :post,
+                  class: "inline-flex min-h-10 items-center justify-center rounded-md border border-cyan-200 bg-white px-4 py-2 text-sm font-bold text-cyan-800 shadow-sm hover:bg-cyan-50" %>
+            <% end %>
+            <%= link_to "Edit", edit_admin_user_path(user), class: "inline-flex min-h-10 items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-sm font-bold text-white" %>
+          </div>
         </div>
 
         <% if user.account_memberships.any? %>
