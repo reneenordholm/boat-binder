@@ -1,8 +1,7 @@
 <section class="mx-auto max-w-5xl space-y-4">
   <div class="flex flex-wrap gap-2">
+    <%= link_to "Back to visit details", vessel_service_visit_path(@vessel, @service_visit), class: secondary_button_class("min-h-10") %>
     <%= link_to "Back to vessel", vessel_path(@vessel), class: secondary_button_class("min-h-10") %>
-    <%= link_to "Back to service visits", service_visits_path, class: secondary_button_class("min-h-10") %>
-    <%= link_to "Preview Report", report_vessel_service_visit_path(@vessel, @service_visit), class: primary_button_class("min-h-10") %>
   </div>
 
   <%= render "report", service_visit: @service_visit, vessel: @vessel, issue_notes: @issue_notes %>

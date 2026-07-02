@@ -9,7 +9,9 @@ Rails.application.routes.draw do
   resources :owners, controller: :accounts, except: %i[destroy]
 
   resources :vessels do
-    resources :service_visits, only: %i[index new create show]
+    resources :service_visits, only: %i[index new create show] do
+      get :report, on: :member
+    end
     resources :documents, only: %i[new create destroy]
     resources :binder_notes, only: %i[create edit update destroy]
     resources :batteries, controller: :asset_batteries, except: %i[index show]
