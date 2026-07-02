@@ -208,10 +208,12 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
 
   test "service visit summary recipient uses first active owner by membership order" do
     account = create_account(name: "Harbor North")
+    captain_member = create_user(email: "captain-member-summary@example.test", role: "captain")
     inactive_owner = create_user(email: "inactive-owner-summary@example.test", role: "owner", active: false)
     first_active_owner = create_user(email: "first-owner-summary@example.test", role: "owner")
     second_active_owner = create_user(email: "second-owner-summary@example.test", role: "owner")
     captain = create_user(email: "captain-owner-order@example.test")
+    create_account_membership(user: captain_member, account: account)
     create_account_membership(user: inactive_owner, account: account)
     first_membership = create_account_membership(user: first_active_owner, account: account)
     second_membership = create_account_membership(user: second_active_owner, account: account)

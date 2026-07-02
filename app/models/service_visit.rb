@@ -49,9 +49,14 @@ class ServiceVisit < ApplicationRecord
   private
 
   def owner_summary_recipient
-    asset.account.account_memberships.active.includes(:user).order(:id).map(&:user).find do |user|
-      user.owner? && user.active? && user.email_address.present?
-    end
+    owner_user_id = asset.account.account_memberships.active
+      .joins(:user)
+      .merge(User.where(role: "owner", active: true))
+      .where.not(users: { email_address: [ nil, "" ] })
+      .order(:id)
+      .pick(:user_id)
+
+    User.find_by(id: owner_user_id)
   end
 
   def contact_summary_recipient
