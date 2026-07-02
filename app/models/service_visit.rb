@@ -49,14 +49,12 @@ class ServiceVisit < ApplicationRecord
   private
 
   def owner_summary_recipient
-    owner_user_id = asset.account.account_memberships.active
-      .joins(:user)
-      .merge(User.where(role: "owner", active: true))
-      .where.not(users: { email_address: [ nil, "" ] })
-      .order(:id)
-      .pick(:user_id)
-
-    User.find_by(id: owner_user_id)
+    User.joins(:account_memberships)
+      .where(account_memberships: { account_id: asset.account_id, active: true })
+      .where(role: "owner", active: true)
+      .where.not(email_address: [ nil, "" ])
+      .order(AccountMembership.arel_table[:id].asc)
+      .first
   end
 
   def contact_summary_recipient

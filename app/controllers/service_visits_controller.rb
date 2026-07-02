@@ -134,7 +134,7 @@ class ServiceVisitsController < ApplicationController
       return false
     end
 
-    ServiceVisitMailer.summary(@service_visit).deliver_now
+    ServiceVisitMailer.summary(@service_visit, recipient_email).deliver_now
     Rails.logger.info("Service visit summary email delivered for service_visit_id=#{@service_visit.id}")
     true
   rescue *ApplicationMailer::DELIVERY_ERRORS => error

@@ -206,6 +206,36 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
     assert_includes mail.text_part.body.decoded, "Follow-up items"
   end
 
+  test "service visit creation passes computed summary recipient to mailer once" do
+    account = create_account(name: "Elliott Family")
+    owner = create_user(email: "single-lookup-owner@example.test", role: "owner")
+    captain = create_user(email: "single-lookup-captain@example.test")
+    create_account_membership(user: owner, account: account)
+    vessel = create_vessel(account: account, name: "Sea Glass")
+    original_summary_recipient_email = ServiceVisit.instance_method(:summary_recipient_email)
+    lookup_count = 0
+    ServiceVisit.define_method(:summary_recipient_email) do
+      lookup_count += 1
+      original_summary_recipient_email.bind(self).call
+    end
+    sign_in_as captain
+
+    assert_difference -> { ActionMailer::Base.deliveries.size }, 1 do
+      post vessel_service_visits_path(vessel), params: {
+        service_visit: {
+          visit_date: Date.current,
+          summary: "Single recipient lookup."
+        }
+      }
+    end
+
+    assert_redirected_to vessel_service_visit_path(vessel, ServiceVisit.last)
+    assert_equal 1, lookup_count
+    assert_equal [ "single-lookup-owner@example.test" ], ActionMailer::Base.deliveries.last.to
+  ensure
+    ServiceVisit.define_method(:summary_recipient_email, original_summary_recipient_email) if original_summary_recipient_email
+  end
+
   test "service visit summary recipient uses first active owner by membership order" do
     account = create_account(name: "Harbor North")
     captain_member = create_user(email: "captain-member-summary@example.test", role: "captain")
@@ -224,7 +254,7 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
       summary: "Owner order summary."
     )
 
-    mail = ServiceVisitMailer.summary(visit)
+    mail = ServiceVisitMailer.summary(visit, visit.summary_recipient_email)
 
     assert_operator first_membership.id, :<, second_membership.id
     assert_equal [ "first-owner-summary@example.test" ], mail.to
@@ -241,7 +271,7 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
       follow_up_needed: false
     )
 
-    mail = ServiceVisitMailer.summary(visit)
+    mail = ServiceVisitMailer.summary(visit, visit.summary_recipient_email)
 
     assert_equal [ "marisol@example.test" ], mail.to
     assert_includes mail.subject, "Solstice"
@@ -276,7 +306,7 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
       raise Errno::ECONNREFUSED, "connect(2) for localhost port 25"
     end
     original_summary = ServiceVisitMailer.method(:summary)
-    ServiceVisitMailer.define_singleton_method(:summary) { |_visit| failed_delivery }
+    ServiceVisitMailer.define_singleton_method(:summary) { |_visit, _recipient_email| failed_delivery }
     sign_in_as captain
 
     assert_difference -> { ServiceVisit.count }, 1 do
