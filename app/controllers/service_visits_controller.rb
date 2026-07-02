@@ -1,6 +1,7 @@
 class ServiceVisitsController < ApplicationController
   before_action :require_write_access!, only: %i[new create]
   before_action :set_vessel, if: -> { params[:vessel_id].present? }
+  before_action :set_service_visit, only: %i[show report]
 
   def index
     service_visits = if @vessel
@@ -31,6 +32,7 @@ class ServiceVisitsController < ApplicationController
 
     if @service_visit.save
       create_issue_note if issue_note_present?
+      deliver_summary_email
       redirect_to vessel_service_visit_path(@vessel, @service_visit), notice: "Visit report saved."
     else
       render :new, status: :unprocessable_entity
@@ -38,6 +40,14 @@ class ServiceVisitsController < ApplicationController
   end
 
   def show
+  end
+
+  def report
+  end
+
+  private
+
+  def set_service_visit
     @service_visit = @vessel.service_visits.includes(
       :performed_by_user,
       :service_visit_inspection_checks,
@@ -47,8 +57,6 @@ class ServiceVisitsController < ApplicationController
     ).find(params[:id])
     @issue_notes = @vessel.binder_notes.where(note_type: "issue").order(created_at: :desc).limit(3)
   end
-
-  private
 
   def service_visit_includes
     [
@@ -117,6 +125,23 @@ class ServiceVisitsController < ApplicationController
       body: params[:issue_body].presence || "Issue noted during vessel visit.",
       note_type: "issue"
     )
+  end
+
+  def deliver_summary_email
+    recipient_email = @service_visit.summary_recipient_email
+    unless recipient_email
+      Rails.logger.info("Service visit summary email skipped for service_visit_id=#{@service_visit.id}: no recipient")
+      return false
+    end
+
+    ServiceVisitMailer.summary(@service_visit).deliver_now
+    Rails.logger.info("Service visit summary email delivered for service_visit_id=#{@service_visit.id}")
+    true
+  rescue *ApplicationMailer::DELIVERY_ERRORS => error
+    Rails.logger.error(
+      "Service visit summary email delivery failed for service_visit_id=#{@service_visit.id}: #{error.class}: #{error.message}"
+    )
+    false
   end
 
   def default_location

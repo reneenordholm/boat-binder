@@ -24,6 +24,10 @@ class ServiceVisit < ApplicationRecord
 
   scope :recent, -> { order(visit_date: :desc, created_at: :desc) }
 
+  def summary_recipient_email
+    owner_summary_recipient&.email_address.presence || contact_summary_recipient&.email.presence
+  end
+
   def build_workflow_defaults
     build_default_engine_readings
     build_default_inspection_checks
@@ -43,6 +47,16 @@ class ServiceVisit < ApplicationRecord
   end
 
   private
+
+  def owner_summary_recipient
+    asset.account.account_memberships.active.includes(:user).map(&:user).find do |user|
+      user.owner? && user.active? && user.email_address.present?
+    end
+  end
+
+  def contact_summary_recipient
+    asset.account.primary_contact
+  end
 
   def build_default_engine_readings
     asset.ensure_default_engines!

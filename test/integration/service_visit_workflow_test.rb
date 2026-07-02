@@ -1,6 +1,14 @@
 require "test_helper"
 
 class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
+  setup do
+    ActionMailer::Base.deliveries.clear
+  end
+
+  teardown do
+    ActionMailer::Base.deliveries.clear
+  end
+
   test "captain views all service visits from dashboard and navigation" do
     captain = create_user(email: "captain-visits@example.test")
     sign_in_as captain
@@ -77,6 +85,10 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
     get vessel_service_visit_path(other_vessel, restricted_visit)
 
     assert_response :not_found
+
+    get report_vessel_service_visit_path(other_vessel, restricted_visit)
+
+    assert_response :not_found
   end
 
   test "captain starts a visit with default engines checklist and battery checks" do
@@ -139,6 +151,7 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_includes response.body, "Client-ready service report"
     assert_includes response.body, "Back to service visits"
+    assert_includes response.body, "Preview Report"
     assert_includes response.body, "Port Engine"
     assert_includes response.body, "124.5"
     assert_includes response.body, "Inspection checklist"
@@ -147,6 +160,115 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "12.72 V"
     assert_includes response.body, "Replace chafed spring line."
     assert_includes response.body, "Follow-up items"
+
+    get report_vessel_service_visit_path(vessel, visit)
+    assert_response :success
+    assert_includes response.body, "Client-ready service report"
+    assert_includes response.body, "Back to visit details"
+    assert_includes response.body, "Replace chafed spring line."
+  end
+
+  test "service visit creation emails owner user summary report" do
+    account = create_account(name: "Elliott Family")
+    account.contacts.create!(name: "Fallback Owner", email: "fallback-owner@example.test", role: "Owner")
+    owner = create_user(email: "owner-summary@example.test", role: "owner")
+    captain = create_user(email: "captain-summary@example.test")
+    create_account_membership(user: owner, account: account)
+    vessel = create_vessel(account: account, name: "Blue Meridian")
+    sign_in_as captain
+
+    assert_difference -> { ActionMailer::Base.deliveries.size }, 1 do
+      post vessel_service_visits_path(vessel), params: {
+        service_visit: {
+          visit_date: Date.current,
+          location: "Bainbridge Marina",
+          summary: "Systems checked and ready.",
+          condition_notes: "Bilge dry and shore power stable.",
+          follow_up_needed: "1",
+          follow_up_notes: "Replace chafed spring line."
+        }
+      }
+    end
+
+    visit = ServiceVisit.find_by!(summary: "Systems checked and ready.")
+    mail = ActionMailer::Base.deliveries.last
+
+    assert_redirected_to vessel_service_visit_path(vessel, visit)
+    assert_equal [ "owner-summary@example.test" ], mail.to
+    assert_includes mail.subject, "Blue Meridian"
+    assert_includes mail.subject, visit.visit_date.to_fs(:long)
+    assert mail.multipart?
+    assert_includes mail.html_part.body.decoded, "Boat Binder"
+    assert_includes mail.html_part.body.decoded, "Inspection checklist"
+    assert_includes mail.html_part.body.decoded, "Battery checks"
+    assert_includes mail.html_part.body.decoded, "Replace chafed spring line."
+    assert_includes mail.text_part.body.decoded, "Systems checked and ready."
+    assert_includes mail.text_part.body.decoded, "Follow-up items"
+  end
+
+  test "service visit summary email falls back to account primary contact and shows no follow-up state" do
+    account = create_account(name: "Marisol Trust")
+    account.contacts.create!(name: "Marisol Owner", email: "marisol@example.test", role: "Owner")
+    vessel = create_vessel(account: account, name: "Solstice")
+    visit = vessel.service_visits.create!(
+      performed_by_user: create_user(email: "captain-contact-summary@example.test"),
+      visit_date: Date.current,
+      summary: "Routine dock check complete.",
+      follow_up_needed: false
+    )
+
+    mail = ServiceVisitMailer.summary(visit)
+
+    assert_equal [ "marisol@example.test" ], mail.to
+    assert_includes mail.subject, "Solstice"
+    assert_includes mail.html_part.body.decoded, "No follow-up items noted."
+    assert_includes mail.text_part.body.decoded, "No follow-up items noted."
+  end
+
+  test "service visit summary email is skipped when no recipient exists" do
+    captain = create_user(email: "captain-no-recipient@example.test")
+    sign_in_as captain
+    vessel = create_vessel(name: "No Recipient")
+
+    assert_no_difference -> { ActionMailer::Base.deliveries.size } do
+      post vessel_service_visits_path(vessel), params: {
+        service_visit: {
+          visit_date: Date.current,
+          summary: "No recipient report"
+        }
+      }
+    end
+
+    assert_redirected_to vessel_service_visit_path(vessel, ServiceVisit.last)
+  end
+
+  test "service visit summary delivery failure does not prevent creation" do
+    account = create_account(name: "Harbor North")
+    account.contacts.create!(name: "Harbor Owner", email: "harbor@example.test", role: "Owner")
+    captain = create_user(email: "captain-delivery-failure@example.test")
+    vessel = create_vessel(account: account, name: "Tide Runner")
+    failed_delivery = Object.new
+    failed_delivery.define_singleton_method(:deliver_now) do
+      raise Errno::ECONNREFUSED, "connect(2) for localhost port 25"
+    end
+    original_summary = ServiceVisitMailer.method(:summary)
+    ServiceVisitMailer.define_singleton_method(:summary) { |_visit| failed_delivery }
+    sign_in_as captain
+
+    assert_difference -> { ServiceVisit.count }, 1 do
+      assert_no_difference -> { ActionMailer::Base.deliveries.size } do
+        post vessel_service_visits_path(vessel), params: {
+          service_visit: {
+            visit_date: Date.current,
+            summary: "Delivery failure should not break create"
+          }
+        }
+      end
+    end
+
+    assert_redirected_to vessel_service_visit_path(vessel, ServiceVisit.last)
+  ensure
+    ServiceVisitMailer.define_singleton_method(:summary, original_summary) if original_summary
   end
 
   test "vessel page shows service history timeline" do
