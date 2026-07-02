@@ -59,9 +59,7 @@ module Admin
         return
       end
 
-      prepare_invitation
-
-      if @user.save && deliver_invitation
+      if resend_pending_invitation
         redirect_to admin_users_path, notice: "Invitation resent."
       else
         redirect_to admin_users_path, alert: INVITATION_RESEND_FAILURE_MESSAGE
@@ -136,6 +134,22 @@ module Admin
         "Invitation email delivery failed for user_id=#{@user.id}: #{error.class}: #{error.message}"
       )
       false
+    end
+
+    def resend_pending_invitation
+      delivered = false
+
+      User.transaction do
+        prepare_invitation
+        if @user.save && deliver_invitation
+          delivered = true
+        else
+          raise ActiveRecord::Rollback
+        end
+      end
+
+      @user.reload unless delivered
+      delivered
     end
 
     def save_user_with_memberships

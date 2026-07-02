@@ -239,6 +239,8 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
 
   test "resend invitation delivery failure redirects with alert" do
     invited_user = create_invited_user
+    original_sent_at = invited_user.reload.invitation_sent_at
+    old_token = invited_user.generate_token_for(:invitation)
     failed_delivery = Object.new
     failed_delivery.define_singleton_method(:deliver_now) do
       raise Errno::ECONNREFUSED, "connect(2) for localhost port 25"
@@ -254,6 +256,15 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
     assert_redirected_to admin_users_path
     assert_equal Admin::UsersController::INVITATION_RESEND_FAILURE_MESSAGE, flash[:alert]
     assert_not_equal "Invitation resent.", flash[:notice]
+
+    invited_user.reload
+    assert_equal original_sent_at.to_f, invited_user.invitation_sent_at.to_f
+    assert invited_user.invitation_pending?
+    assert_not invited_user.active?
+
+    get edit_invitation_path(old_token)
+    assert_response :success
+    assert_includes response.body, invited_user.email_address
   ensure
     UserInvitationsMailer.define_singleton_method(:invite, original_invite) if original_invite
   end
