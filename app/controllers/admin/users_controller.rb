@@ -137,19 +137,34 @@ module Admin
     end
 
     def resend_pending_invitation
-      delivered = false
+      previous_invitation_state = invitation_resend_state
 
-      User.transaction do
-        prepare_invitation
-        if @user.save && deliver_invitation
-          delivered = true
-        else
-          raise ActiveRecord::Rollback
-        end
+      prepare_invitation
+      unless @user.save
+        restore_invitation_state(previous_invitation_state)
+        return false
       end
 
-      @user.reload unless delivered
-      delivered
+      return true if deliver_invitation
+
+      restore_invitation_state(previous_invitation_state)
+      false
+    end
+
+    def invitation_resend_state
+      @user.slice(:active, :invitation_sent_at, :invitation_accepted_at, :password_digest)
+    end
+
+    def restore_invitation_state(state)
+      @user.assign_attributes(state)
+
+      if @user.save
+        @user.reload
+      else
+        Rails.logger.error(
+          "Invitation resend state restore failed for user_id=#{@user.id}: #{@user.errors.full_messages.to_sentence}"
+        )
+      end
     end
 
     def save_user_with_memberships

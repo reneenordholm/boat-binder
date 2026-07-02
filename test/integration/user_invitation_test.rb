@@ -241,8 +241,11 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
     invited_user = create_invited_user
     original_sent_at = invited_user.reload.invitation_sent_at
     old_token = invited_user.generate_token_for(:invitation)
+    baseline_open_transactions = ActiveRecord::Base.connection.open_transactions
+    delivery_open_transactions = nil
     failed_delivery = Object.new
     failed_delivery.define_singleton_method(:deliver_now) do
+      delivery_open_transactions = ActiveRecord::Base.connection.open_transactions
       raise Errno::ECONNREFUSED, "connect(2) for localhost port 25"
     end
     original_invite = UserInvitationsMailer.method(:invite)
@@ -256,6 +259,7 @@ class UserInvitationTest < ActionDispatch::IntegrationTest
     assert_redirected_to admin_users_path
     assert_equal Admin::UsersController::INVITATION_RESEND_FAILURE_MESSAGE, flash[:alert]
     assert_not_equal "Invitation resent.", flash[:notice]
+    assert_equal baseline_open_transactions, delivery_open_transactions
 
     invited_user.reload
     assert_equal original_sent_at.to_f, invited_user.invitation_sent_at.to_f
