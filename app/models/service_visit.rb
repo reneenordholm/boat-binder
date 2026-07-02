@@ -49,7 +49,7 @@ class ServiceVisit < ApplicationRecord
   private
 
   def owner_summary_recipient
-    asset.account.account_memberships.active.includes(:user).map(&:user).find do |user|
+    asset.account.account_memberships.active.includes(:user).order(:id).map(&:user).find do |user|
       user.owner? && user.active? && user.email_address.present?
     end
   end

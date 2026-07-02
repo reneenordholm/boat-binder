@@ -206,6 +206,28 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
     assert_includes mail.text_part.body.decoded, "Follow-up items"
   end
 
+  test "service visit summary recipient uses first active owner by membership order" do
+    account = create_account(name: "Harbor North")
+    inactive_owner = create_user(email: "inactive-owner-summary@example.test", role: "owner", active: false)
+    first_active_owner = create_user(email: "first-owner-summary@example.test", role: "owner")
+    second_active_owner = create_user(email: "second-owner-summary@example.test", role: "owner")
+    captain = create_user(email: "captain-owner-order@example.test")
+    create_account_membership(user: inactive_owner, account: account)
+    first_membership = create_account_membership(user: first_active_owner, account: account)
+    second_membership = create_account_membership(user: second_active_owner, account: account)
+    vessel = create_vessel(account: account, name: "Tide Runner")
+    visit = vessel.service_visits.create!(
+      performed_by_user: captain,
+      visit_date: Date.current,
+      summary: "Owner order summary."
+    )
+
+    mail = ServiceVisitMailer.summary(visit)
+
+    assert_operator first_membership.id, :<, second_membership.id
+    assert_equal [ "first-owner-summary@example.test" ], mail.to
+  end
+
   test "service visit summary email falls back to account primary contact and shows no follow-up state" do
     account = create_account(name: "Marisol Trust")
     account.contacts.create!(name: "Marisol Owner", email: "marisol@example.test", role: "Owner")
