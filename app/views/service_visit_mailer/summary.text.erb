@@ -6,6 +6,9 @@ Visit date: <%= short_date(@service_visit.visit_date) %>
 Captain: <%= user_display_name(@service_visit.performed_by_user) %>
 Location: <%= @service_visit.location.presence || @vessel.location_label %>
 
+View full report in Boat Binder:
+<%= @report_url %>
+
 Engine hours:
 <%= service_visit_engine_hour_summary(@service_visit) %>
 

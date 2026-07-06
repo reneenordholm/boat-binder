@@ -1,6 +1,11 @@
 <div style="font-family: Arial, sans-serif; color: #0B1F35;">
   <p style="font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: uppercase; color: #1E5A7A;">Boat Binder</p>
   <p style="font-size: 16px; line-height: 1.6;">A service visit report is ready for <strong><%= @vessel.name %></strong>.</p>
+  <p style="margin: 20px 0 24px;">
+    <%= link_to "View full report in Boat Binder",
+        @report_url,
+        style: "display: inline-block; border-radius: 6px; background: #1E5A7A; color: #FFFFFF; font-size: 14px; font-weight: 700; padding: 12px 16px; text-decoration: none;" %>
+  </p>
 
   <%= render "service_visits/report",
       service_visit: @service_visit,
