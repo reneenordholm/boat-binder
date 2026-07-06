@@ -1,3 +1,6 @@
+<% issue_notes = local_assigns.fetch(:issue_notes, []) %>
+<% show_photos = local_assigns.fetch(:show_photos, true) %>
+
 <article class="overflow-hidden rounded-md border border-[#E7DED2] bg-white shadow-sm shadow-[#0B1F35]/5">
   <header class="bg-[#0B1F35] p-5 text-white md:p-8">
     <div class="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
@@ -145,7 +148,7 @@
         <%= status_chip(service_visit.follow_up_needed? ? "Action needed" : "Clear", tone: service_visit.follow_up_needed? ? :urgent : :success) %>
       </div>
       <div class="rounded-md border <%= service_visit.follow_up_needed? ? "border-amber-100 bg-amber-50" : "border-emerald-100 bg-emerald-50" %> p-4">
-        <p class="leading-7 text-slate-700"><%= service_visit.follow_up_notes.presence || "No follow-up recommendations recorded." %></p>
+        <p class="leading-7 text-slate-700"><%= service_visit.follow_up_notes.presence || "No follow-up items noted." %></p>
       </div>
     </section>
 
@@ -165,12 +168,14 @@
 
     <section class="space-y-3">
       <h2 class="text-xl font-black">Photos</h2>
-      <% if service_visit.photos.attached? %>
+      <% if service_visit.photos.attached? && show_photos %>
         <div class="grid gap-3 sm:grid-cols-2">
           <% service_visit.photos.each do |photo| %>
             <%= image_tag photo, alt: "", class: "aspect-[4/3] w-full rounded-md object-cover ring-1 ring-slate-200" %>
           <% end %>
         </div>
+      <% elsif service_visit.photos.attached? %>
+        <p class="leading-7 text-slate-700">Photos are attached to this visit and available in Boat Binder.</p>
       <% else %>
         <p class="leading-7 text-slate-700">No photos uploaded for this visit.</p>
       <% end %>

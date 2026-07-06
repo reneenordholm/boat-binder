@@ -1,0 +1,10 @@
+<div style="font-family: Arial, sans-serif; color: #0B1F35;">
+  <p style="font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: uppercase; color: #1E5A7A;">Boat Binder</p>
+  <p style="font-size: 16px; line-height: 1.6;">A service visit report is ready for <strong><%= @vessel.name %></strong>.</p>
+
+  <%= render "service_visits/report",
+      service_visit: @service_visit,
+      vessel: @vessel,
+      issue_notes: @issue_notes,
+      show_photos: false %>
+</div>
