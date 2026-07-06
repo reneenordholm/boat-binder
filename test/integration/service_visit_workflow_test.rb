@@ -223,6 +223,8 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
 
     visit = ServiceVisit.find_by!(summary: "Systems checked and ready.")
     mail = ActionMailer::Base.deliveries.last
+    mailer_url_options = Rails.application.config.action_mailer.default_url_options
+    expected_report_url = report_vessel_service_visit_url(vessel, visit, **mailer_url_options)
 
     assert_redirected_to vessel_service_visit_path(vessel, visit)
     assert_equal [ "owner-summary@example.test" ], mail.to
@@ -234,10 +236,10 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
     assert_includes mail.html_part.body.decoded, "Battery checks"
     assert_includes mail.html_part.body.decoded, "Replace chafed spring line."
     assert_includes mail.html_part.body.decoded, "View full report in Boat Binder"
-    assert_includes mail.html_part.body.decoded, report_vessel_service_visit_url(vessel, visit)
+    assert_includes mail.html_part.body.decoded, expected_report_url
     assert_includes mail.text_part.body.decoded, "Systems checked and ready."
     assert_includes mail.text_part.body.decoded, "Follow-up items"
-    assert_includes mail.text_part.body.decoded, report_vessel_service_visit_url(vessel, visit)
+    assert_includes mail.text_part.body.decoded, expected_report_url
   end
 
   test "service visit creation passes computed summary recipient to mailer once" do
