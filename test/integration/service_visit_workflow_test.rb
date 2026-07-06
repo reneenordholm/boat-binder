@@ -106,6 +106,37 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "House Battery 1"
   end
 
+  test "service visit dates use app timezone for defaults and summary emails" do
+    travel_to Time.utc(2026, 7, 6, 6, 30) do
+      account = create_account(name: "Elliott Family")
+      account.contacts.create!(name: "Elliott Owner", email: "elliott@example.test", role: "Owner")
+      captain = create_user(email: "captain-timezone@example.test")
+      vessel = create_vessel(account: account, name: "Blue Meridian")
+      sign_in_as captain
+
+      get new_vessel_service_visit_path(vessel)
+
+      assert_response :success
+      assert_select "input[name='service_visit[visit_date]'][value='2026-07-05']"
+
+      assert_difference -> { ActionMailer::Base.deliveries.size }, 1 do
+        post vessel_service_visits_path(vessel), params: {
+          service_visit: {
+            visit_date: Date.current,
+            summary: "Pacific timezone dock check."
+          }
+        }
+      end
+
+      mail = ActionMailer::Base.deliveries.last
+
+      assert_includes mail.subject, Date.new(2026, 7, 5).to_fs(:long)
+      assert_not_includes mail.subject, Date.new(2026, 7, 6).to_fs(:long)
+      assert_includes mail.html_part.body.decoded, "Jul 5, 2026"
+      assert_not_includes mail.html_part.body.decoded, "Jul 6, 2026"
+    end
+  end
+
   test "captain saves structured service visit data and report renders it" do
     sign_in_as
     vessel = create_vessel
@@ -202,8 +233,11 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
     assert_includes mail.html_part.body.decoded, "Inspection checklist"
     assert_includes mail.html_part.body.decoded, "Battery checks"
     assert_includes mail.html_part.body.decoded, "Replace chafed spring line."
+    assert_includes mail.html_part.body.decoded, "View full report in Boat Binder"
+    assert_includes mail.html_part.body.decoded, report_vessel_service_visit_url(vessel, visit)
     assert_includes mail.text_part.body.decoded, "Systems checked and ready."
     assert_includes mail.text_part.body.decoded, "Follow-up items"
+    assert_includes mail.text_part.body.decoded, report_vessel_service_visit_url(vessel, visit)
   end
 
   test "service visit creation passes computed summary recipient to mailer once" do
@@ -277,6 +311,36 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
     assert_includes mail.subject, "Solstice"
     assert_includes mail.html_part.body.decoded, "No follow-up items noted."
     assert_includes mail.text_part.body.decoded, "No follow-up items noted."
+    assert_not_includes mail.html_part.body.decoded, "Action needed"
+    assert_not_includes mail.html_part.body.decoded, "Follow-up needed"
+  end
+
+  test "service visit report does not show action label when follow up notes are blank" do
+    account = create_account(name: "Harbor North")
+    account.contacts.create!(name: "Harbor Owner", email: "harbor@example.test", role: "Owner")
+    captain = create_user(email: "captain-empty-follow-up@example.test")
+    vessel = create_vessel(account: account, name: "Tide Runner")
+    visit = vessel.service_visits.create!(
+      performed_by_user: captain,
+      visit_date: Date.current,
+      summary: "Routine check complete.",
+      follow_up_needed: true,
+      follow_up_notes: ""
+    )
+    sign_in_as captain
+
+    get report_vessel_service_visit_path(vessel, visit)
+
+    assert_response :success
+    assert_includes response.body, "No follow-up items noted."
+    assert_not_includes response.body, "Action needed"
+    assert_not_includes response.body, "Follow-up needed"
+
+    mail = ServiceVisitMailer.summary(visit, visit.summary_recipient_email)
+
+    assert_includes mail.html_part.body.decoded, "No follow-up items noted."
+    assert_not_includes mail.html_part.body.decoded, "Action needed"
+    assert_not_includes mail.html_part.body.decoded, "Follow-up needed"
   end
 
   test "service visit summary email is skipped when no recipient exists" do

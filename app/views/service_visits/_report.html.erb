@@ -1,5 +1,7 @@
 <% issue_notes = local_assigns.fetch(:issue_notes, []) %>
 <% show_photos = local_assigns.fetch(:show_photos, true) %>
+<% follow_up_notes = service_visit.follow_up_notes.to_s.strip %>
+<% follow_up_items_present = follow_up_notes.present? %>
 
 <article class="overflow-hidden rounded-md border border-[#E7DED2] bg-white shadow-sm shadow-[#0B1F35]/5">
   <header class="bg-[#0B1F35] p-5 text-white md:p-8">
@@ -12,7 +14,7 @@
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
-        <%= status_chip(service_visit.follow_up_needed? ? "Follow-up needed" : "No follow-up", tone: service_visit.follow_up_needed? ? :urgent : :success) %>
+        <%= status_chip(follow_up_items_present ? "Follow-up needed" : "No follow-up", tone: follow_up_items_present ? :urgent : :success) %>
       </div>
     </div>
   </header>
@@ -145,10 +147,12 @@
     <section class="space-y-3">
       <div class="flex items-center justify-between gap-3">
         <h2 class="text-xl font-black">Follow-up items</h2>
-        <%= status_chip(service_visit.follow_up_needed? ? "Action needed" : "Clear", tone: service_visit.follow_up_needed? ? :urgent : :success) %>
+        <% if follow_up_items_present %>
+          <%= status_chip("Action needed", tone: :urgent) %>
+        <% end %>
       </div>
-      <div class="rounded-md border <%= service_visit.follow_up_needed? ? "border-amber-100 bg-amber-50" : "border-emerald-100 bg-emerald-50" %> p-4">
-        <p class="leading-7 text-slate-700"><%= service_visit.follow_up_notes.presence || "No follow-up items noted." %></p>
+      <div class="rounded-md border <%= follow_up_items_present ? "border-amber-100 bg-amber-50" : "border-emerald-100 bg-emerald-50" %> p-4">
+        <p class="leading-7 text-slate-700"><%= follow_up_items_present ? follow_up_notes : "No follow-up items noted." %></p>
       </div>
     </section>
 

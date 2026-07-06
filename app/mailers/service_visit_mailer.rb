@@ -5,6 +5,7 @@ class ServiceVisitMailer < ApplicationMailer
     @service_visit = service_visit
     @vessel = service_visit.asset
     @issue_notes = []
+    @report_url = report_vessel_service_visit_url(@vessel, @service_visit)
 
     mail(
       subject: "#{@vessel.name} service visit report - #{@service_visit.visit_date.to_fs(:long)}",
