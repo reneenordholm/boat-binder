@@ -83,6 +83,30 @@ module ApplicationHelper
     end
   end
 
+  def service_visit_email_engine_hour_summary(visit)
+    readings = visit.ordered_engine_readings.select { |reading| reading.hours.present? }
+
+    if readings.any?
+      engine_label = "engine".pluralize(readings.size)
+      "#{readings.size} #{engine_label} recorded"
+    elsif visit.engine_hours.present?
+      "#{number_with_precision(visit.engine_hours, precision: 1, strip_insignificant_zeros: true)} hours"
+    else
+      "Not recorded"
+    end
+  end
+
+  def service_visit_photo_count(visit)
+    visit.photos.attachments.size
+  end
+
+  def service_visit_follow_up_items(visit, limit: 3)
+    visit.follow_up_notes.to_s.lines
+      .map { |line| line.strip.sub(/\A[-*]\s*/, "") }
+      .select(&:present?)
+      .first(limit)
+  end
+
   def app_nav_items
     items = [
       [ "Dashboard", root_path, "D" ],

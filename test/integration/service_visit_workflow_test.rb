@@ -197,6 +197,17 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Client-ready service report"
     assert_includes response.body, "Back to visit details"
     assert_includes response.body, "Replace chafed spring line."
+
+    mail = ServiceVisitMailer.summary(visit, "owner@example.test")
+
+    assert_includes mail.html_part.body.decoded, "Visit summary"
+    assert_includes mail.html_part.body.decoded, "2 of 9 complete"
+    assert_includes mail.html_part.body.decoded, "2 engines recorded"
+    assert_not_includes mail.html_part.body.decoded, "Port Engine"
+    assert_not_includes mail.html_part.body.decoded, "Starboard Engine"
+    assert_not_includes mail.html_part.body.decoded, "Hull clean."
+    assert_not_includes mail.html_part.body.decoded, "Port Start Battery"
+    assert_not_includes mail.html_part.body.decoded, "12.72 V"
   end
 
   test "service visit creation emails owner user summary report" do
@@ -216,7 +227,12 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
           summary: "Systems checked and ready.",
           condition_notes: "Bilge dry and shore power stable.",
           follow_up_needed: "1",
-          follow_up_notes: "Replace chafed spring line."
+          follow_up_notes: [
+            "Replace chafed spring line.",
+            "Schedule diver for running gear inspection.",
+            "Order spare fuel filters.",
+            "Review shore power cord."
+          ].join("\n")
         }
       }
     end
@@ -232,13 +248,28 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
     assert_includes mail.subject, visit.visit_date.to_fs(:long)
     assert mail.multipart?
     assert_includes mail.html_part.body.decoded, "Boat Binder"
-    assert_includes mail.html_part.body.decoded, "Inspection checklist"
+    assert_includes mail.html_part.body.decoded, "Blue Meridian Service Visit"
+    assert_includes mail.html_part.body.decoded, "Visit summary"
+    assert_includes mail.html_part.body.decoded, "Follow-up status"
+    assert_includes mail.html_part.body.decoded, "Inspection"
     assert_includes mail.html_part.body.decoded, "Battery checks"
+    assert_includes mail.html_part.body.decoded, "0 photos"
+    assert_includes mail.html_part.body.decoded, "Notes preview"
+    assert_includes mail.html_part.body.decoded, "Systems checked and ready."
     assert_includes mail.html_part.body.decoded, "Replace chafed spring line."
+    assert_includes mail.html_part.body.decoded, "Schedule diver for running gear inspection."
+    assert_includes mail.html_part.body.decoded, "Order spare fuel filters."
+    assert_not_includes mail.html_part.body.decoded, "Review shore power cord."
     assert_includes mail.html_part.body.decoded, "View full report in Boat Binder"
     assert_includes mail.html_part.body.decoded, expected_report_url
+    assert_not_includes mail.html_part.body.decoded, "Client-ready service report"
+    assert_not_includes mail.html_part.body.decoded, "Inspection checklist"
+    assert_not_includes mail.html_part.body.decoded, "Engine readings"
     assert_includes mail.text_part.body.decoded, "Systems checked and ready."
-    assert_includes mail.text_part.body.decoded, "Follow-up items"
+    assert_includes mail.text_part.body.decoded, "VISIT SUMMARY"
+    assert_includes mail.text_part.body.decoded, "FOLLOW-UP ITEMS"
+    assert_includes mail.text_part.body.decoded, "- Replace chafed spring line."
+    assert_not_includes mail.text_part.body.decoded, "- Review shore power cord."
     assert_includes mail.text_part.body.decoded, expected_report_url
   end
 
