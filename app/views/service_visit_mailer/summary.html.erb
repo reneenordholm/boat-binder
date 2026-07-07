@@ -1,4 +1,5 @@
 <% follow_up_items = service_visit_follow_up_items(@service_visit) %>
+<% follow_up_needed = @service_visit.follow_up_needed? %>
 <% notes_preview = @service_visit.summary.presence || @service_visit.condition_notes.presence %>
 
 <div style="background: #F7F5F2; color: #0B1F35; font-family: Arial, sans-serif; padding: 24px;">
@@ -17,7 +18,7 @@
       <table role="presentation" style="border-collapse: collapse; width: 100%;">
         <tr>
           <td style="border-top: 1px solid #E7DED2; padding: 12px 0; vertical-align: top; width: 42%;"><strong>Follow-up status</strong></td>
-          <td style="border-top: 1px solid #E7DED2; padding: 12px 0;"><%= follow_up_items.any? ? "Follow-up needed" : "No follow-up items" %></td>
+          <td style="border-top: 1px solid #E7DED2; padding: 12px 0;"><%= follow_up_needed ? "Follow-up needed" : "No follow-up needed" %></td>
         </tr>
         <tr>
           <td style="border-top: 1px solid #E7DED2; padding: 12px 0; vertical-align: top;"><strong>Engine hours</strong></td>
@@ -51,12 +52,14 @@
 
     <div style="background: #FFFFFF; border: 1px solid #E7DED2; border-radius: 10px; margin-top: 18px; padding: 20px;">
       <h2 style="font-size: 18px; margin: 0 0 10px;">Follow-up items</h2>
-      <% if follow_up_items.any? %>
+      <% if follow_up_needed && follow_up_items.any? %>
         <ul style="color: #334155; font-size: 15px; line-height: 1.7; margin: 0; padding-left: 20px;">
           <% follow_up_items.each do |item| %>
             <li><%= item %></li>
           <% end %>
         </ul>
+      <% elsif follow_up_needed %>
+        <p style="color: #334155; font-size: 15px; line-height: 1.7; margin: 0;">Follow-up was marked during this visit.</p>
       <% else %>
         <p style="color: #334155; font-size: 15px; line-height: 1.7; margin: 0;">No follow-up items noted.</p>
       <% end %>
