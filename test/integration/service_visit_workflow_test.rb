@@ -203,6 +203,9 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
     assert_includes mail.html_part.body.decoded, "Visit summary"
     assert_includes mail.html_part.body.decoded, "2 of 9 complete"
     assert_includes mail.html_part.body.decoded, "2 engines recorded"
+    assert_includes mail.html_part.body.decoded, "Engine summary"
+    assert_not_includes mail.html_part.body.decoded, "Engine hours"
+    assert_not_includes mail.html_part.body.decoded, "role=\"presentation\""
     assert_not_includes mail.html_part.body.decoded, "Port Engine"
     assert_not_includes mail.html_part.body.decoded, "Starboard Engine"
     assert_not_includes mail.html_part.body.decoded, "Hull clean."
@@ -253,6 +256,8 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
     assert_includes mail.html_part.body.decoded, "Follow-up status"
     assert_includes mail.html_part.body.decoded, "Follow-up needed"
     assert_includes mail.html_part.body.decoded, "Inspection"
+    assert_includes mail.html_part.body.decoded, "Engine summary"
+    assert_not_includes mail.html_part.body.decoded, "Engine hours"
     assert_includes mail.html_part.body.decoded, "Battery checks"
     assert_includes mail.html_part.body.decoded, "0 photos"
     assert_includes mail.html_part.body.decoded, "Notes preview"
@@ -270,6 +275,8 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
     assert_includes mail.text_part.body.decoded, "Systems checked and ready."
     assert_includes mail.text_part.body.decoded, "VISIT SUMMARY"
     assert_includes mail.text_part.body.decoded, "Follow-up status: Follow-up needed"
+    assert_includes mail.text_part.body.decoded, "Engine summary"
+    assert_not_includes mail.text_part.body.decoded, "Engine hours"
     assert_includes mail.text_part.body.decoded, "FOLLOW-UP ITEMS"
     assert_includes mail.text_part.body.decoded, "- Replace chafed spring line."
     assert_not_includes mail.text_part.body.decoded, "- Review shore power cord."
@@ -354,6 +361,32 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
     assert_not_includes mail.text_part.body.decoded, "Follow-up was marked during this visit."
     assert_not_includes mail.html_part.body.decoded, "Action needed"
     assert_not_includes mail.html_part.body.decoded, "Follow-up needed"
+  end
+
+  test "service visit summary email shows note items even when follow up flag is false" do
+    account = create_account(name: "Marisol Trust")
+    account.contacts.create!(name: "Marisol Owner", email: "marisol-notes@example.test", role: "Owner")
+    vessel = create_vessel(account: account, name: "Sea Glass")
+    visit = vessel.service_visits.create!(
+      performed_by_user: create_user(email: "captain-follow-up-notes@example.test"),
+      visit_date: Date.current,
+      summary: "Routine dock check complete.",
+      follow_up_needed: false,
+      follow_up_notes: "Monitor shore power cord.\nCheck dock line chafe."
+    )
+
+    mail = ServiceVisitMailer.summary(visit, visit.summary_recipient_email)
+
+    assert_includes mail.html_part.body.decoded, "No follow-up needed"
+    assert_includes mail.html_part.body.decoded, "Monitor shore power cord."
+    assert_includes mail.html_part.body.decoded, "Check dock line chafe."
+    assert_not_includes mail.html_part.body.decoded, "No follow-up items noted."
+    assert_not_includes mail.html_part.body.decoded, "Follow-up was marked during this visit."
+    assert_includes mail.text_part.body.decoded, "Follow-up status: No follow-up needed"
+    assert_includes mail.text_part.body.decoded, "- Monitor shore power cord."
+    assert_includes mail.text_part.body.decoded, "- Check dock line chafe."
+    assert_not_includes mail.text_part.body.decoded, "No follow-up items noted."
+    assert_not_includes mail.text_part.body.decoded, "Follow-up was marked during this visit."
   end
 
   test "service visit report does not show action label when follow up notes are blank" do
