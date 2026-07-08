@@ -84,11 +84,15 @@ module ApplicationHelper
   end
 
   def service_visit_email_engine_hour_summary(visit)
-    readings = visit.ordered_engine_readings.select { |reading| reading.hours.present? }
+    recorded_reading_count = if visit.service_visit_engine_readings.loaded?
+      visit.service_visit_engine_readings.count { |reading| reading.hours.present? }
+    else
+      visit.service_visit_engine_readings.where.not(hours: nil).count
+    end
 
-    if readings.any?
-      engine_label = "engine".pluralize(readings.size)
-      "#{readings.size} #{engine_label} recorded"
+    if recorded_reading_count.positive?
+      engine_label = "engine".pluralize(recorded_reading_count)
+      "#{recorded_reading_count} #{engine_label} recorded"
     elsif visit.engine_hours.present?
       "#{number_with_precision(visit.engine_hours, precision: 1, strip_insignificant_zeros: true)} hours"
     else
