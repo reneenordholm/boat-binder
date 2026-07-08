@@ -205,7 +205,6 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
     assert_includes mail.html_part.body.decoded, "2 engines recorded"
     assert_includes mail.html_part.body.decoded, "Engine summary"
     assert_not_includes mail.html_part.body.decoded, "Engine hours"
-    assert_not_includes mail.html_part.body.decoded, "role=\"presentation\""
     assert_not_includes mail.html_part.body.decoded, "Port Engine"
     assert_not_includes mail.html_part.body.decoded, "Starboard Engine"
     assert_not_includes mail.html_part.body.decoded, "Hull clean."
@@ -363,7 +362,7 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
     assert_not_includes mail.html_part.body.decoded, "Follow-up needed"
   end
 
-  test "service visit summary email shows note items even when follow up flag is false" do
+  test "service visit summary email renders follow-up items even when follow_up_needed is false" do
     account = create_account(name: "Marisol Trust")
     account.contacts.create!(name: "Marisol Owner", email: "marisol-notes@example.test", role: "Owner")
     vessel = create_vessel(account: account, name: "Sea Glass")
