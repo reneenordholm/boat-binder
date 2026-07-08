@@ -26,38 +26,45 @@
   <% if @vessels.any? %>
     <div class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
       <% @vessels.each do |vessel| %>
-        <article class="<%= app_card_class("flex flex-col p-5 transition hover:-translate-y-0.5 hover:border-[#7DAAB3] hover:shadow-md") %>">
-          <div class="flex items-start justify-between gap-4">
-            <div>
-              <p class="text-xs font-black uppercase tracking-normal text-[#1E5A7A]"><%= vessel.owner_name %></p>
-              <h2 class="mt-1 text-2xl font-black tracking-normal"><%= link_to vessel.name, vessel_path(vessel), class: "transition hover:text-[#1E5A7A]" %></h2>
-              <p class="mt-2 text-sm font-semibold text-slate-600"><%= vessel.display_model.presence || "Vessel profile" %></p>
+        <article class="<%= app_card_class("flex flex-col overflow-hidden transition hover:-translate-y-0.5 hover:border-[#7DAAB3] hover:shadow-md") %>">
+          <%= vessel_primary_photo(
+            vessel,
+            image_class: "aspect-[16/9] w-full object-cover",
+            placeholder_class: "flex aspect-[16/9] w-full flex-col items-center justify-center bg-[#0B1F35] p-5 text-center"
+          ) %>
+          <div class="flex flex-1 flex-col p-5">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <p class="text-xs font-black uppercase tracking-normal text-[#1E5A7A]"><%= vessel.owner_name %></p>
+                <h2 class="mt-1 text-2xl font-black tracking-normal"><%= link_to vessel.name, vessel_path(vessel), class: "transition hover:text-[#1E5A7A]" %></h2>
+                <p class="mt-2 text-sm font-semibold text-slate-600"><%= vessel.display_model.presence || "Vessel profile" %></p>
+              </div>
+              <%= status_chip(vessel.active? ? "Active" : "Inactive", tone: vessel.active? ? :success : :neutral) %>
             </div>
-            <%= status_chip(vessel.active? ? "Active" : "Inactive", tone: vessel.active? ? :success : :neutral) %>
-          </div>
 
-          <div class="mt-5 space-y-2 text-sm text-slate-600">
-            <p><span class="font-black text-[#0B1F35]">Owner:</span> <%= vessel.account.name %></p>
-            <p><span class="font-black text-[#0B1F35]">Location:</span> <%= vessel.location_label %></p>
-          </div>
+            <div class="mt-5 space-y-2 text-sm text-slate-600">
+              <p><span class="font-black text-[#0B1F35]">Owner:</span> <%= vessel.account.name %></p>
+              <p><span class="font-black text-[#0B1F35]">Location:</span> <%= vessel.location_label %></p>
+            </div>
 
-          <div class="mt-5 grid grid-cols-2 gap-3 border-y border-[#F0E8DE] py-4 text-sm">
-            <div>
-              <p class="font-semibold text-slate-500">Open notes</p>
-              <p class="mt-1 text-2xl font-black"><%= vessel.binder_notes.size %></p>
+            <div class="mt-5 grid grid-cols-2 gap-3 border-y border-[#F0E8DE] py-4 text-sm">
+              <div>
+                <p class="font-semibold text-slate-500">Open notes</p>
+                <p class="mt-1 text-2xl font-black"><%= vessel.binder_notes.size %></p>
+              </div>
+              <div>
+                <p class="font-semibold text-slate-500">Documents</p>
+                <p class="mt-1 text-2xl font-black"><%= vessel.documents.size %></p>
+              </div>
             </div>
-            <div>
-              <p class="font-semibold text-slate-500">Documents</p>
-              <p class="mt-1 text-2xl font-black"><%= vessel.documents.size %></p>
-            </div>
-          </div>
 
-          <div class="mt-4 flex items-center justify-between gap-3">
-            <div>
-              <p class="text-xs font-semibold uppercase tracking-normal text-slate-500">Next item</p>
-              <p class="mt-1 text-sm font-black"><%= vessel.next_reminder&.title || "Clear" %></p>
+            <div class="mt-4 flex items-center justify-between gap-3">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-normal text-slate-500">Next item</p>
+                <p class="mt-1 text-sm font-black"><%= vessel.next_reminder&.title || "Clear" %></p>
+              </div>
+              <%= link_to "View Vessel", vessel_path(vessel), class: secondary_button_class("shrink-0") %>
             </div>
-            <%= link_to "View Vessel", vessel_path(vessel), class: secondary_button_class("shrink-0") %>
           </div>
         </article>
       <% end %>

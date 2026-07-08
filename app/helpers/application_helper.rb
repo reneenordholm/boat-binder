@@ -111,6 +111,19 @@ module ApplicationHelper
       .first(limit)
   end
 
+  def vessel_primary_photo(vessel, image_class:, placeholder_class:)
+    if vessel.primary_photo.attached?
+      image_tag vessel.primary_photo, alt: "#{vessel.name} primary photo", class: image_class
+    else
+      tag.div class: placeholder_class, role: "img", aria: { label: "Primary photo placeholder for #{vessel.name}" } do
+        safe_join([
+          tag.div(vessel.name.first.to_s.upcase, class: "text-4xl font-black text-white/90"),
+          tag.div(vessel.location_label, class: "mt-2 text-xs font-black uppercase tracking-normal text-[#B9D5DA]")
+        ])
+      end
+    end
+  end
+
   def app_nav_items
     items = [
       [ "Dashboard", root_path, "D" ],
