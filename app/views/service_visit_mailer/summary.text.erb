@@ -1,39 +1,33 @@
+<% follow_up_items = service_visit_follow_up_items(@service_visit) %>
+<% follow_up_needed = @service_visit.follow_up_needed? %>
+<% notes_preview = @service_visit.summary.presence || @service_visit.condition_notes.presence %>
+<% total_checks = service_visit_total_check_count(@service_visit) %>
 Boat Binder
 
-Service visit report for <%= @vessel.name %>
-Owner: <%= @vessel.owner_name %>
+<%= @vessel.name %> Service Visit
 Visit date: <%= short_date(@service_visit.visit_date) %>
-Captain: <%= user_display_name(@service_visit.performed_by_user) %>
-Location: <%= @service_visit.location.presence || @vessel.location_label %>
+Performed by: <%= user_display_name(@service_visit.performed_by_user) %>
+
+VISIT SUMMARY
+Follow-up status: <%= follow_up_needed ? "Follow-up needed" : "No follow-up needed" %>
+Engine summary: <%= service_visit_email_engine_hour_summary(@service_visit) %>
+Inspection: <% if total_checks.positive? %><%= service_visit_checked_count(@service_visit) %> of <%= total_checks %> complete<% else %>Not recorded<% end %>
+Battery checks: <%= service_visit_battery_check_count(@service_visit) %> completed
+Photos: <%= pluralize(service_visit_photo_count(@service_visit), "photo") %>
+
+NOTES PREVIEW
+<%= notes_preview.presence || "No notes recorded." %>
+
+FOLLOW-UP ITEMS
+<% if follow_up_items.any? %>
+<% follow_up_items.each do |item| %>
+- <%= item %>
+<% end %>
+<% elsif follow_up_needed %>
+Follow-up was marked during this visit.
+<% else %>
+No follow-up items noted.
+<% end %>
 
 View full report in Boat Binder:
 <%= @report_url %>
-
-Engine hours:
-<%= service_visit_engine_hour_summary(@service_visit) %>
-
-Inspection checklist:
-<% if service_visit_total_check_count(@service_visit).positive? %>
-<%= service_visit_checked_count(@service_visit) %> of <%= service_visit_total_check_count(@service_visit) %> complete
-<% else %>
-Not recorded
-<% end %>
-
-Battery checks:
-<%= service_visit_battery_check_count(@service_visit) %> completed
-
-Summary:
-<%= @service_visit.summary.presence || "No summary recorded." %>
-
-Notes:
-<%= @service_visit.condition_notes.presence || "No condition notes recorded." %>
-
-Follow-up items:
-<%= @service_visit.follow_up_notes.presence || "No follow-up items noted." %>
-
-Photos:
-<% if @service_visit.photos.attached? %>
-Photos are attached to this visit and available in Boat Binder.
-<% else %>
-No photos uploaded for this visit.
-<% end %>
