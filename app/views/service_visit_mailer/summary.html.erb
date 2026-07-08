@@ -1,6 +1,7 @@
 <% follow_up_items = service_visit_follow_up_items(@service_visit) %>
 <% follow_up_needed = @service_visit.follow_up_needed? %>
 <% notes_preview = @service_visit.summary.presence || @service_visit.condition_notes.presence %>
+<% total_checks = service_visit_total_check_count(@service_visit) %>
 
 <div style="background: #F7F5F2; color: #0B1F35; font-family: Arial, sans-serif; padding: 24px;">
   <div style="margin: 0 auto; max-width: 640px;">
@@ -27,8 +28,8 @@
         <tr>
           <td style="border-top: 1px solid #E7DED2; padding: 12px 0; vertical-align: top;"><strong>Inspection</strong></td>
           <td style="border-top: 1px solid #E7DED2; padding: 12px 0;">
-            <% if service_visit_total_check_count(@service_visit).positive? %>
-              <%= service_visit_checked_count(@service_visit) %> of <%= service_visit_total_check_count(@service_visit) %> complete
+            <% if total_checks.positive? %>
+              <%= service_visit_checked_count(@service_visit) %> of <%= total_checks %> complete
             <% else %>
               Not recorded
             <% end %>

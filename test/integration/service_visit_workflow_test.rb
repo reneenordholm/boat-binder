@@ -132,6 +132,7 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
 
       assert_includes mail.subject, Date.new(2026, 7, 5).to_fs(:long)
       assert_not_includes mail.subject, Date.new(2026, 7, 6).to_fs(:long)
+      assert mail.multipart?
       assert_includes mail.html_part.body.decoded, "Jul 5, 2026"
       assert_not_includes mail.html_part.body.decoded, "Jul 6, 2026"
     end
@@ -200,6 +201,7 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
 
     mail = ServiceVisitMailer.summary(visit, "owner@example.test")
 
+    assert mail.multipart?
     assert_includes mail.html_part.body.decoded, "Visit summary"
     assert_includes mail.html_part.body.decoded, "2 of 9 complete"
     assert_includes mail.html_part.body.decoded, "2 engines recorded"
@@ -352,6 +354,7 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
 
     assert_equal [ "marisol@example.test" ], mail.to
     assert_includes mail.subject, "Solstice"
+    assert mail.multipart?
     assert_includes mail.html_part.body.decoded, "No follow-up needed"
     assert_includes mail.html_part.body.decoded, "No follow-up items noted."
     assert_includes mail.text_part.body.decoded, "Follow-up status: No follow-up needed"
@@ -376,6 +379,7 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
 
     mail = ServiceVisitMailer.summary(visit, visit.summary_recipient_email)
 
+    assert mail.multipart?
     assert_includes mail.html_part.body.decoded, "No follow-up needed"
     assert_includes mail.html_part.body.decoded, "Monitor shore power cord."
     assert_includes mail.html_part.body.decoded, "Check dock line chafe."
@@ -411,6 +415,7 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
 
     mail = ServiceVisitMailer.summary(visit, visit.summary_recipient_email)
 
+    assert mail.multipart?
     assert_includes mail.html_part.body.decoded, "Follow-up needed"
     assert_includes mail.html_part.body.decoded, "Follow-up was marked during this visit."
     assert_includes mail.text_part.body.decoded, "Follow-up status: Follow-up needed"
