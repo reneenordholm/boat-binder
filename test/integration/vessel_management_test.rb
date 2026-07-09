@@ -143,6 +143,11 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "img[alt=?]", "#{vessel.name} primary photo"
+
+    get root_path
+
+    assert_response :success
+    assert_select "img[alt=?]", "#{vessel.name} primary photo"
   end
 
   test "vessel show and index display primary photo fallback" do
@@ -150,6 +155,11 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
     vessel = create_vessel
 
     get vessel_path(vessel)
+
+    assert_response :success
+    assert_select "[aria-label=?]", "Primary photo placeholder for #{vessel.name}"
+
+    get root_path
 
     assert_response :success
     assert_select "[aria-label=?]", "Primary photo placeholder for #{vessel.name}"

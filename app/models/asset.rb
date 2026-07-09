@@ -126,14 +126,15 @@ class Asset < ApplicationRecord
   def primary_photo_is_safe_upload
     return unless primary_photo.attached?
 
+    blob = primary_photo.blob
     unsafe_upload = false
 
-    unless PRIMARY_PHOTO_CONTENT_TYPES.include?(primary_photo.blob.content_type.to_s)
+    unless PRIMARY_PHOTO_CONTENT_TYPES.include?(blob.content_type.to_s)
       errors.add(:primary_photo, "must be a JPEG, PNG, or WEBP image")
       unsafe_upload = true
     end
 
-    if primary_photo.blob.byte_size > PRIMARY_PHOTO_MAX_SIZE
+    if blob.byte_size > PRIMARY_PHOTO_MAX_SIZE
       errors.add(:primary_photo, "must be 10 MB or smaller")
       unsafe_upload = true
     end
