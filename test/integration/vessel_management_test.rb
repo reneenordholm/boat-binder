@@ -25,6 +25,7 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
     vessel = Asset.find_by!(name: "North Star")
     assert_redirected_to vessel_path(vessel)
     assert_equal "/vessels/north-star", vessel_path(vessel)
+    assert_not vessel.primary_photo.attached?
 
     get vessels_path(q: "Port Orchard")
     assert_response :success
@@ -58,6 +59,31 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
     assert_redirected_to vessels_path
   end
 
+  test "internal users create vessels with valid primary photos" do
+    %w[captain admin].each do |role|
+      sign_in_as create_user(email: "#{role}-create-photo@example.test", role: role)
+      account = create_account(name: "Photo Owner #{role.titleize}")
+
+      assert_difference -> { Asset.vessels.count }, 1 do
+        assert_difference -> { ActiveStorage::Attachment.count }, 1 do
+          post vessels_path, params: {
+            asset: {
+              account_id: account.id,
+              name: "New Photo #{role.titleize}",
+              make: "Sabre",
+              primary_photo: fixture_file_upload("sample.jpg", "image/jpeg")
+            }
+          }
+        end
+      end
+
+      vessel = Asset.find_by!(name: "New Photo #{role.titleize}")
+      assert_redirected_to vessel_path(vessel)
+      assert vessel.primary_photo.attached?
+      assert_equal "image/jpeg", vessel.primary_photo.blob.content_type
+    end
+  end
+
   test "internal users upload valid vessel primary photos" do
     %w[captain admin].each do |role|
       sign_in_as create_user(email: "#{role}-photo@example.test", role: role)
@@ -76,9 +102,16 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "vessel edit form exposes image primary photo upload" do
+  test "vessel new and edit forms expose image primary photo upload" do
     sign_in_as
     vessel = create_vessel
+
+    get new_vessel_path
+
+    assert_response :success
+    assert_select "label[for=?]", "asset_primary_photo", "Primary vessel photo"
+    assert_select "input[type=file][name=?][accept=?]", "asset[primary_photo]", Asset::PRIMARY_PHOTO_CONTENT_TYPES.join(",")
+    assert_includes response.body, "Upload a JPEG, PNG, or WEBP image up to 10 MB."
 
     get edit_vessel_path(vessel)
 
@@ -104,6 +137,59 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Remove this vessel photo?"
   end
 
+  test "invalid primary photo file type during vessel creation is rejected" do
+    sign_in_as
+    account = create_account(name: "Invalid Photo Owner")
+
+    assert_no_difference -> { Asset.vessels.count } do
+      assert_no_difference -> { ActiveStorage::Blob.count } do
+        assert_no_difference -> { ActiveStorage::Attachment.count } do
+          post vessels_path, params: {
+            asset: {
+              account_id: account.id,
+              name: "Invalid Photo",
+              primary_photo: fixture_file_upload("sample.pdf", "application/pdf")
+            }
+          }
+        end
+      end
+    end
+
+    assert_response :unprocessable_entity
+    assert_includes response.body, "Primary photo must be a JPEG, PNG, or WEBP image"
+  end
+
+  test "oversized primary photo during vessel creation is rejected" do
+    sign_in_as
+    account = create_account(name: "Oversized Photo Owner")
+    oversized_file = Tempfile.new([ "oversized-primary-photo-create", ".jpg" ])
+
+    begin
+      oversized_file.binmode
+      oversized_file.truncate(Asset::PRIMARY_PHOTO_MAX_SIZE + 1)
+      oversized_file.rewind
+
+      assert_no_difference -> { Asset.vessels.count } do
+        assert_no_difference -> { ActiveStorage::Blob.count } do
+          assert_no_difference -> { ActiveStorage::Attachment.count } do
+            post vessels_path, params: {
+              asset: {
+                account_id: account.id,
+                name: "Oversized Photo",
+                primary_photo: Rack::Test::UploadedFile.new(oversized_file.path, "image/jpeg", true)
+              }
+            }
+          end
+        end
+      end
+    ensure
+      oversized_file.close!
+    end
+
+    assert_response :unprocessable_entity
+    assert_includes response.body, "Primary photo must be 10 MB or smaller"
+  end
+
   test "invalid vessel primary photo file type is rejected" do
     sign_in_as
     vessel = create_vessel
@@ -120,6 +206,37 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
     assert_not vessel.reload.primary_photo.attached?
+    assert_includes response.body, "Primary photo must be a JPEG, PNG, or WEBP image"
+  end
+
+  test "invalid primary photo replacement preserves existing photo and other attachments" do
+    user = create_user(email: "captain-invalid-replacement@example.test")
+    sign_in_as user
+    vessel = create_vessel
+    vessel.primary_photo.attach(fixture_file_upload("sample.jpg", "image/jpeg"))
+    existing_blob_id = vessel.primary_photo.blob.id
+    document = vessel.documents.create!(account: vessel.account, title: "Insurance", document_type: "insurance")
+    document.file.attach(fixture_file_upload("sample.pdf", "application/pdf"))
+    service_visit = vessel.service_visits.create!(performed_by_user: user, visit_date: Date.current, summary: "Dock check")
+    service_visit.photos.attach(fixture_file_upload("sample.png", "image/png"))
+
+    assert_no_difference -> { ActiveStorage::Blob.count } do
+      assert_no_difference -> { ActiveStorage::Attachment.count } do
+        patch vessel_path(vessel), params: {
+          asset: {
+            primary_photo: fixture_file_upload("sample.pdf", "application/pdf")
+          }
+        }
+      end
+    end
+
+    assert_response :unprocessable_entity
+    vessel.reload
+    assert vessel.primary_photo.attached?
+    assert_equal existing_blob_id, vessel.primary_photo.blob.id
+    assert document.reload.file.attached?
+    assert service_visit.reload.photos.attached?
+    assert_select "img[alt=?]", "#{vessel.name} primary photo"
     assert_includes response.body, "Primary photo must be a JPEG, PNG, or WEBP image"
   end
 
@@ -149,6 +266,57 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
     assert_not vessel.reload.primary_photo.attached?
     assert_includes response.body, "Primary photo must be 10 MB or smaller"
+  end
+
+  test "oversized primary photo replacement preserves existing photo" do
+    sign_in_as
+    vessel = create_vessel
+    vessel.primary_photo.attach(fixture_file_upload("sample.jpg", "image/jpeg"))
+    existing_blob_id = vessel.primary_photo.blob.id
+    oversized_file = Tempfile.new([ "oversized-primary-photo-replacement", ".jpg" ])
+
+    begin
+      oversized_file.binmode
+      oversized_file.truncate(Asset::PRIMARY_PHOTO_MAX_SIZE + 1)
+      oversized_file.rewind
+
+      assert_no_difference -> { ActiveStorage::Blob.count } do
+        assert_no_difference -> { ActiveStorage::Attachment.count } do
+          patch vessel_path(vessel), params: {
+            asset: {
+              primary_photo: Rack::Test::UploadedFile.new(oversized_file.path, "image/jpeg", true)
+            }
+          }
+        end
+      end
+    ensure
+      oversized_file.close!
+    end
+
+    assert_response :unprocessable_entity
+    vessel.reload
+    assert vessel.primary_photo.attached?
+    assert_equal existing_blob_id, vessel.primary_photo.blob.id
+    assert_includes response.body, "Primary photo must be 10 MB or smaller"
+  end
+
+  test "valid primary photo replacement replaces previous photo" do
+    sign_in_as
+    vessel = create_vessel
+    vessel.primary_photo.attach(fixture_file_upload("sample.jpg", "image/jpeg"))
+    previous_blob_id = vessel.primary_photo.blob.id
+
+    patch vessel_path(vessel), params: {
+      asset: {
+        primary_photo: fixture_file_upload("sample.png", "image/png")
+      }
+    }
+
+    assert_redirected_to vessel_path(vessel)
+    vessel.reload
+    assert vessel.primary_photo.attached?
+    assert_not_equal previous_blob_id, vessel.primary_photo.blob.id
+    assert_equal "image/png", vessel.primary_photo.blob.content_type
   end
 
   test "vessel show displays primary photo when attached" do

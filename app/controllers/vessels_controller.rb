@@ -36,9 +36,17 @@ class VesselsController < ApplicationController
   end
 
   def create
-    @vessel = Asset.new(vessel_params)
+    primary_photo_upload = vessel_params[:primary_photo]
+    @vessel = Asset.new(vessel_params.except(:primary_photo))
     @vessel.asset_type = "vessel"
     return unless assign_vessel_account(@vessel)
+
+    if (primary_photo_error = Asset.primary_photo_upload_error(primary_photo_upload))
+      render_vessel_form_with_primary_photo_error(@vessel, primary_photo_error, :new)
+      return
+    end
+
+    @vessel.primary_photo.attach(primary_photo_upload) if primary_photo_upload.present?
 
     if @vessel.save
       redirect_to vessel_path(@vessel), notice: "Vessel added."
@@ -53,7 +61,15 @@ class VesselsController < ApplicationController
   end
 
   def update
+    primary_photo_upload = vessel_params[:primary_photo]
+    permitted_attributes = vessel_params.except(:primary_photo)
     return unless assign_vessel_account(@vessel)
+
+    if (primary_photo_error = Asset.primary_photo_upload_error(primary_photo_upload))
+      @vessel.assign_attributes(permitted_attributes)
+      render_vessel_form_with_primary_photo_error(@vessel, primary_photo_error, :edit)
+      return
+    end
 
     if @vessel.update(vessel_params)
       redirect_to vessel_path(@vessel), notice: "Vessel updated."
@@ -97,6 +113,13 @@ class VesselsController < ApplicationController
 
   def owner_options_for(vessel)
     scoped_accounts.where(active: true).or(scoped_accounts.where(id: vessel.account_id)).ordered
+  end
+
+  def render_vessel_form_with_primary_photo_error(vessel, message, template)
+    vessel.valid?
+    vessel.errors.add(:primary_photo, message)
+    @accounts = template == :new ? scoped_accounts.active.ordered : owner_options_for(vessel)
+    render template, status: :unprocessable_entity
   end
 
   def assign_vessel_account(vessel)

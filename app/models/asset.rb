@@ -6,6 +6,8 @@ class Asset < ApplicationRecord
     image/webp
   ].freeze
   PRIMARY_PHOTO_MAX_SIZE = 10.megabytes
+  PRIMARY_PHOTO_CONTENT_TYPE_ERROR = "must be a JPEG, PNG, or WEBP image"
+  PRIMARY_PHOTO_SIZE_ERROR = "must be 10 MB or smaller"
 
   belongs_to :account
   has_many :service_visits, dependent: :destroy
@@ -43,6 +45,13 @@ class Asset < ApplicationRecord
       )
     end
   }
+
+  def self.primary_photo_upload_error(upload)
+    return if upload.blank?
+
+    return PRIMARY_PHOTO_CONTENT_TYPE_ERROR unless PRIMARY_PHOTO_CONTENT_TYPES.include?(upload.content_type.to_s)
+    return PRIMARY_PHOTO_SIZE_ERROR if primary_photo_upload_size(upload).to_i > PRIMARY_PHOTO_MAX_SIZE
+  end
 
   def to_param
     slug
@@ -130,17 +139,25 @@ class Asset < ApplicationRecord
     unsafe_upload = false
 
     unless PRIMARY_PHOTO_CONTENT_TYPES.include?(blob.content_type.to_s)
-      errors.add(:primary_photo, "must be a JPEG, PNG, or WEBP image")
+      errors.add(:primary_photo, PRIMARY_PHOTO_CONTENT_TYPE_ERROR)
       unsafe_upload = true
     end
 
     if blob.byte_size > PRIMARY_PHOTO_MAX_SIZE
-      errors.add(:primary_photo, "must be 10 MB or smaller")
+      errors.add(:primary_photo, PRIMARY_PHOTO_SIZE_ERROR)
       unsafe_upload = true
     end
 
     primary_photo.purge if unsafe_upload
   end
+
+  def self.primary_photo_upload_size(upload)
+    return upload.size if upload.respond_to?(:size)
+    return upload.tempfile.size if upload.respond_to?(:tempfile) && upload.tempfile
+
+    0
+  end
+  private_class_method :primary_photo_upload_size
 
   def normalize_text_fields
     %i[name make model marina slip registration_number notes].each do |attribute|
