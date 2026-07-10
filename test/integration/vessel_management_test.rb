@@ -392,8 +392,8 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
       }
     }
 
-    assert_redirected_to vessel_path(vessel)
     vessel.reload
+    assert_redirected_to vessel_path(vessel)
     assert_equal "Validation Photo II", vessel.name
     assert vessel.primary_photo.attached?
     assert_not_equal original_blob_id, vessel.primary_photo.blob.id
@@ -413,8 +413,8 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
       }
     }
 
-    assert_redirected_to vessel_path(vessel)
     vessel.reload
+    assert_redirected_to vessel_path(vessel)
     assert_equal "No Photo Update II", vessel.name
     assert_equal "Shilshole Bay Marina", vessel.marina
     assert_equal original_blob_id, vessel.primary_photo.blob.id
