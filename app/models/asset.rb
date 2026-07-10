@@ -50,7 +50,7 @@ class Asset < ApplicationRecord
     return if upload.blank?
 
     return PRIMARY_PHOTO_CONTENT_TYPE_ERROR unless PRIMARY_PHOTO_CONTENT_TYPES.include?(upload.content_type.to_s)
-    return PRIMARY_PHOTO_SIZE_ERROR if primary_photo_upload_size(upload).to_i > PRIMARY_PHOTO_MAX_SIZE
+    PRIMARY_PHOTO_SIZE_ERROR if primary_photo_upload_size(upload).to_i > PRIMARY_PHOTO_MAX_SIZE
   end
 
   def to_param
