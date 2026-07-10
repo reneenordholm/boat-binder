@@ -85,10 +85,10 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "input[type=file][name=?][accept=?]", "asset[primary_photo]", Asset::PRIMARY_PHOTO_CONTENT_TYPES.join(",")
     assert_includes response.body, "Upload a JPEG, PNG, or WEBP image up to 10 MB."
-    assert_select "a[href=?]", primary_photo_vessel_path(vessel), count: 0
+    assert_select "form[action=?]", primary_photo_vessel_path(vessel), count: 0
   end
 
-  test "vessel edit form exposes remove action when primary photo exists" do
+  test "vessel edit form exposes remove button that submits delete when primary photo exists" do
     sign_in_as
     vessel = create_vessel
     vessel.primary_photo.attach(fixture_file_upload("sample.jpg", "image/jpeg"))
@@ -96,7 +96,11 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
     get edit_vessel_path(vessel)
 
     assert_response :success
-    assert_select "a[href=?][data-turbo-method=?]", primary_photo_vessel_path(vessel), "delete", text: /Remove photo/
+    assert_select "a[href=?][data-turbo-method=?]", primary_photo_vessel_path(vessel), "delete", count: 0
+    assert_select "form[action=?][method=?]", primary_photo_vessel_path(vessel), "post" do
+      assert_select "input[name=?][value=?]", "_method", "delete"
+      assert_select "button", text: /Remove photo/
+    end
     assert_includes response.body, "Remove this vessel photo?"
   end
 
