@@ -58,12 +58,14 @@ class ServiceVisit < ApplicationRecord
   def photos_are_safe_uploads
     return unless photos.attached?
 
-    photos.each do |photo|
-      next if ALLOWED_PHOTO_CONTENT_TYPES.include?(photo.blob.content_type.to_s)
-
-      errors.add(:photos, "must be JPEG, PNG, or WEBP images")
-      photo.purge
+    invalid_photos = photos.reject do |photo|
+      ALLOWED_PHOTO_CONTENT_TYPES.include?(photo.blob.content_type.to_s)
     end
+
+    return if invalid_photos.none?
+
+    errors.add(:photos, "must be JPEG, PNG, or WEBP images")
+    invalid_photos.each(&:purge)
   end
 
   def owner_summary_recipient
