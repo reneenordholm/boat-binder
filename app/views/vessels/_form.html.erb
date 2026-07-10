@@ -34,27 +34,25 @@
 <% end %>
 
 <%= form_with model: vessel, url: vessel.persisted? ? vessel_path(vessel) : vessels_path, class: "space-y-5" do |form| %>
-  <% if vessel.persisted? %>
-    <section class="space-y-4 rounded-md border border-slate-200 bg-white p-4 shadow-sm">
-      <div>
-        <h2 class="text-lg font-black"><%= vessel.primary_photo.attached? ? "Replace photo" : "Primary photo" %></h2>
-        <p class="mt-1 text-sm leading-6 text-slate-600">Upload a JPEG, PNG, or WEBP image up to 10 MB.</p>
+  <section class="space-y-4 rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+    <div>
+      <h2 class="text-lg font-black"><%= vessel.persisted? && vessel.primary_photo.attached? ? "Replace photo" : "Primary vessel photo" %></h2>
+      <p class="mt-1 text-sm leading-6 text-slate-600">Upload a JPEG, PNG, or WEBP image up to 10 MB.</p>
+    </div>
+    <% if vessel.persisted? && !vessel.primary_photo.attached? %>
+      <div class="overflow-hidden rounded-md border border-slate-200 bg-slate-50">
+        <%= vessel_primary_photo(
+          vessel,
+          image_class: "aspect-[16/9] w-full object-cover",
+          placeholder_class: "flex aspect-[16/9] w-full flex-col items-center justify-center bg-[#0B1F35] p-5 text-center"
+        ) %>
       </div>
-      <% unless vessel.primary_photo.attached? %>
-        <div class="overflow-hidden rounded-md border border-slate-200 bg-slate-50">
-          <%= vessel_primary_photo(
-            vessel,
-            image_class: "aspect-[16/9] w-full object-cover",
-            placeholder_class: "flex aspect-[16/9] w-full flex-col items-center justify-center bg-[#0B1F35] p-5 text-center"
-          ) %>
-        </div>
-      <% end %>
-      <div>
-        <%= form.label :primary_photo, vessel.primary_photo.attached? ? "Replace photo" : "Add primary photo", class: "text-sm font-semibold text-slate-700" %>
-        <%= form.file_field :primary_photo, accept: Asset::PRIMARY_PHOTO_CONTENT_TYPES.join(","), class: "mt-2 block min-h-12 w-full rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-base file:mr-3 file:rounded-md file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:font-bold file:text-white" %>
-      </div>
-    </section>
-  <% end %>
+    <% end %>
+    <div>
+      <%= form.label :primary_photo, vessel.persisted? && vessel.primary_photo.attached? ? "Replace photo" : "Primary vessel photo", class: "text-sm font-semibold text-slate-700" %>
+      <%= form.file_field :primary_photo, accept: Asset::PRIMARY_PHOTO_CONTENT_TYPES.join(","), class: "mt-2 block min-h-12 w-full rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-base file:mr-3 file:rounded-md file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:font-bold file:text-white" %>
+    </div>
+  </section>
 
   <section class="space-y-4 rounded-md border border-slate-200 bg-white p-4 shadow-sm">
     <h2 class="text-lg font-black">Owner</h2>

@@ -6,6 +6,8 @@ class Asset < ApplicationRecord
     image/webp
   ].freeze
   PRIMARY_PHOTO_MAX_SIZE = 10.megabytes
+  PRIMARY_PHOTO_CONTENT_TYPE_ERROR = "must be a JPEG, PNG, or WEBP image"
+  PRIMARY_PHOTO_SIZE_ERROR = "must be 10 MB or smaller"
 
   belongs_to :account
   has_many :service_visits, dependent: :destroy
@@ -43,6 +45,15 @@ class Asset < ApplicationRecord
       )
     end
   }
+
+  def self.primary_photo_upload_error(upload)
+    return if upload.blank?
+
+    detected_content_type = primary_photo_upload_content_type(upload)
+
+    return PRIMARY_PHOTO_CONTENT_TYPE_ERROR unless PRIMARY_PHOTO_CONTENT_TYPES.include?(detected_content_type)
+    PRIMARY_PHOTO_SIZE_ERROR if primary_photo_upload_size(upload).to_i > PRIMARY_PHOTO_MAX_SIZE
+  end
 
   def to_param
     slug
@@ -130,17 +141,61 @@ class Asset < ApplicationRecord
     unsafe_upload = false
 
     unless PRIMARY_PHOTO_CONTENT_TYPES.include?(blob.content_type.to_s)
-      errors.add(:primary_photo, "must be a JPEG, PNG, or WEBP image")
+      errors.add(:primary_photo, PRIMARY_PHOTO_CONTENT_TYPE_ERROR)
       unsafe_upload = true
     end
 
     if blob.byte_size > PRIMARY_PHOTO_MAX_SIZE
-      errors.add(:primary_photo, "must be 10 MB or smaller")
+      errors.add(:primary_photo, PRIMARY_PHOTO_SIZE_ERROR)
       unsafe_upload = true
     end
 
     primary_photo.purge if unsafe_upload
   end
+
+  def self.primary_photo_upload_size(upload)
+    return upload.size if upload.respond_to?(:size)
+    return upload.tempfile.size if upload.respond_to?(:tempfile) && upload.tempfile
+
+    0
+  end
+  private_class_method :primary_photo_upload_size
+
+  def self.primary_photo_upload_content_type(upload)
+    io = primary_photo_upload_io(upload)
+
+    return Marcel::MimeType.for(name: primary_photo_upload_filename(upload), declared_type: upload.content_type) unless io
+
+    current_position = io.pos if io.respond_to?(:pos)
+    io.rewind if io.respond_to?(:rewind)
+
+    Marcel::MimeType.for(
+      io,
+      name: primary_photo_upload_filename(upload),
+      declared_type: upload.content_type
+    )
+  ensure
+    if io && current_position && io.respond_to?(:seek)
+      io.seek(current_position)
+    elsif io&.respond_to?(:rewind)
+      io.rewind
+    end
+  end
+  private_class_method :primary_photo_upload_content_type
+
+  def self.primary_photo_upload_io(upload)
+    return upload.tempfile if upload.respond_to?(:tempfile) && upload.tempfile
+
+    upload if upload.respond_to?(:read)
+  end
+  private_class_method :primary_photo_upload_io
+
+  def self.primary_photo_upload_filename(upload)
+    return upload.original_filename if upload.respond_to?(:original_filename)
+
+    upload.path if upload.respond_to?(:path)
+  end
+  private_class_method :primary_photo_upload_filename
 
   def normalize_text_fields
     %i[name make model marina slip registration_number notes].each do |attribute|

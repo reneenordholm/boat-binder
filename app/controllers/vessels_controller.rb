@@ -1,4 +1,6 @@
 class VesselsController < ApplicationController
+  PrimaryPhotoAttachmentError = Class.new(StandardError)
+
   before_action :require_write_access!, only: %i[new create edit update destroy destroy_primary_photo]
   before_action :set_vessel, only: %i[show edit update destroy destroy_primary_photo]
 
@@ -36,16 +38,28 @@ class VesselsController < ApplicationController
   end
 
   def create
-    @vessel = Asset.new(vessel_params)
+    primary_photo_upload = vessel_params[:primary_photo]
+    @vessel = Asset.new(vessel_params.except(:primary_photo))
     @vessel.asset_type = "vessel"
     return unless assign_vessel_account(@vessel)
 
-    if @vessel.save
-      redirect_to vessel_path(@vessel), notice: "Vessel added."
-    else
-      @accounts = scoped_accounts.active.ordered
-      render :new, status: :unprocessable_entity
+    if (primary_photo_error = Asset.primary_photo_upload_error(primary_photo_upload))
+      render_vessel_form_with_primary_photo_error(@vessel, primary_photo_error, :new)
+      return
     end
+
+    ActiveRecord::Base.transaction do
+      @vessel.save!
+      attach_primary_photo!(@vessel, primary_photo_upload) if primary_photo_upload.present?
+    end
+
+    redirect_to vessel_path(@vessel), notice: "Vessel added."
+  rescue ActiveRecord::RecordInvalid
+    @accounts = scoped_accounts.active.ordered
+    render :new, status: :unprocessable_entity
+  rescue PrimaryPhotoAttachmentError => error
+    Rails.logger.error("Primary photo attachment failed for vessel create: #{error.message}")
+    render_vessel_form_with_primary_photo_error(@vessel, "could not be attached. Please try again.", :new)
   end
 
   def edit
@@ -53,14 +67,28 @@ class VesselsController < ApplicationController
   end
 
   def update
+    primary_photo_upload = vessel_params[:primary_photo]
+    permitted_attributes = vessel_params.except(:primary_photo)
     return unless assign_vessel_account(@vessel)
 
-    if @vessel.update(vessel_params)
-      redirect_to vessel_path(@vessel), notice: "Vessel updated."
-    else
-      @accounts = owner_options_for(@vessel)
-      render :edit, status: :unprocessable_entity
+    if (primary_photo_error = Asset.primary_photo_upload_error(primary_photo_upload))
+      @vessel.assign_attributes(permitted_attributes)
+      render_vessel_form_with_primary_photo_error(@vessel, primary_photo_error, :edit)
+      return
     end
+
+    ActiveRecord::Base.transaction do
+      @vessel.update!(permitted_attributes)
+      attach_primary_photo!(@vessel, primary_photo_upload) if primary_photo_upload.present?
+    end
+
+    redirect_to vessel_path(@vessel), notice: "Vessel updated."
+  rescue ActiveRecord::RecordInvalid
+    @accounts = owner_options_for(@vessel)
+    render :edit, status: :unprocessable_entity
+  rescue PrimaryPhotoAttachmentError => error
+    Rails.logger.error("Primary photo attachment failed for vessel update: #{error.message}")
+    render_vessel_form_with_primary_photo_error(@vessel, "could not be attached. Please try again.", :edit)
   end
 
   def destroy
@@ -74,6 +102,15 @@ class VesselsController < ApplicationController
   end
 
   private
+
+  def attach_primary_photo!(vessel, upload)
+    vessel.primary_photo.attach(upload)
+    raise PrimaryPhotoAttachmentError, "primary photo was not attached" unless vessel.primary_photo.attached?
+  rescue StandardError => error
+    raise if error.is_a?(PrimaryPhotoAttachmentError)
+
+    raise PrimaryPhotoAttachmentError, "#{error.class}: #{error.message}"
+  end
 
   def set_vessel
     @vessel = scoped_vessels.includes({ account: :contacts }, primary_photo_attachment: :blob).find_by!(slug: params[:id])
@@ -97,6 +134,13 @@ class VesselsController < ApplicationController
 
   def owner_options_for(vessel)
     scoped_accounts.where(active: true).or(scoped_accounts.where(id: vessel.account_id)).ordered
+  end
+
+  def render_vessel_form_with_primary_photo_error(vessel, message, template)
+    vessel.valid?
+    vessel.errors.add(:primary_photo, message)
+    @accounts = template == :new ? scoped_accounts.active.ordered : owner_options_for(vessel)
+    render template, status: :unprocessable_entity
   end
 
   def assign_vessel_account(vessel)
