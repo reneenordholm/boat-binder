@@ -104,6 +104,9 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Bilge"
     assert_includes response.body, "Shore power"
     assert_includes response.body, "House Battery 1"
+    assert_select "label[for='service_visit_photos']", "Choose or take photos"
+    assert_select "input[type='file'][name='service_visit[photos][]'][accept=?][multiple]", ServiceVisit::ALLOWED_PHOTO_CONTENT_TYPES.join(",")
+    assert_select "input[type='file'][name='service_visit[photos][]'][capture]", count: 0
   end
 
   test "service visit dates use app timezone for defaults and summary emails" do
@@ -212,6 +215,53 @@ class ServiceVisitWorkflowTest < ActionDispatch::IntegrationTest
     assert_not_includes mail.html_part.body.decoded, "Hull clean."
     assert_not_includes mail.html_part.body.decoded, "Port Start Battery"
     assert_not_includes mail.html_part.body.decoded, "12.72 V"
+  end
+
+  test "captain saves service visit with valid image photos" do
+    sign_in_as
+    vessel = create_vessel
+
+    assert_difference -> { ServiceVisit.count }, 1 do
+      post vessel_service_visits_path(vessel), params: {
+        service_visit: {
+          visit_date: Date.current,
+          summary: "Photo log from dock walk.",
+          photos: [
+            fixture_file_upload("sample.jpg", "image/jpeg"),
+            fixture_file_upload("sample.webp", "image/webp")
+          ]
+        }
+      }
+    end
+
+    visit = ServiceVisit.find_by!(summary: "Photo log from dock walk.")
+    assert_redirected_to vessel_service_visit_path(vessel, visit)
+    assert_equal 2, visit.photos.count
+    assert_equal [ "image/jpeg", "image/webp" ], visit.photos.map { |photo| photo.blob.content_type }
+  end
+
+  test "service visit photos reject non image uploads" do
+    sign_in_as
+    vessel = create_vessel
+
+    assert_no_difference -> { ServiceVisit.count } do
+      assert_no_difference -> { ActiveStorage::Blob.count } do
+        assert_no_difference -> { ActiveStorage::Attachment.count } do
+          post vessel_service_visits_path(vessel), params: {
+            service_visit: {
+              visit_date: Date.current,
+              summary: "PDF should not attach as a photo.",
+              photos: [
+                fixture_file_upload("sample.pdf", "application/pdf")
+              ]
+            }
+          }
+        end
+      end
+    end
+
+    assert_response :unprocessable_entity
+    assert_includes response.body, "Photos must be JPEG, PNG, or WEBP images"
   end
 
   test "service visit creation emails owner user summary report" do
