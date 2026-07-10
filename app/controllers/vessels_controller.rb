@@ -1,6 +1,6 @@
 class VesselsController < ApplicationController
-  before_action :require_write_access!, only: %i[new create edit update destroy]
-  before_action :set_vessel, only: %i[show edit update destroy]
+  before_action :require_write_access!, only: %i[new create edit update destroy destroy_primary_photo]
+  before_action :set_vessel, only: %i[show edit update destroy destroy_primary_photo]
 
   def index
     @query = params[:q].to_s.strip
@@ -66,6 +66,11 @@ class VesselsController < ApplicationController
   def destroy
     @vessel.destroy!
     redirect_to vessels_path, notice: "Vessel removed."
+  end
+
+  def destroy_primary_photo
+    @vessel.primary_photo.purge if @vessel.primary_photo.attached?
+    redirect_to vessel_path(@vessel), notice: "Primary vessel photo removed."
   end
 
   private
