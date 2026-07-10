@@ -84,6 +84,26 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "valid primary photo with inaccurate declared type is detected and accepted" do
+    sign_in_as
+    account = create_account(name: "Detected Photo Owner")
+
+    assert_difference -> { Asset.vessels.count }, 1 do
+      post vessels_path, params: {
+        asset: {
+          account_id: account.id,
+          name: "Detected Photo",
+          primary_photo: fixture_file_upload("sample.png", "text/plain")
+        }
+      }
+    end
+
+    vessel = Asset.find_by!(name: "Detected Photo")
+    assert_redirected_to vessel_path(vessel)
+    assert vessel.primary_photo.attached?
+    assert_equal "image/png", vessel.primary_photo.blob.content_type
+  end
+
   test "internal users upload valid vessel primary photos" do
     %w[captain admin].each do |role|
       sign_in_as create_user(email: "#{role}-photo@example.test", role: role)
@@ -137,7 +157,7 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Remove this vessel photo?"
   end
 
-  test "invalid primary photo file type during vessel creation is rejected" do
+  test "non-image primary photo declared as jpeg during vessel creation is rejected" do
     sign_in_as
     account = create_account(name: "Invalid Photo Owner")
 
@@ -148,7 +168,7 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
             asset: {
               account_id: account.id,
               name: "Invalid Photo",
-              primary_photo: fixture_file_upload("sample.pdf", "application/pdf")
+              primary_photo: fixture_file_upload("sample.pdf", "image/jpeg")
             }
           }
         end
@@ -157,6 +177,28 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
     assert_includes response.body, "Primary photo must be a JPEG, PNG, or WEBP image"
+  end
+
+  test "failed vessel creation with valid primary photo does not create active storage rows" do
+    sign_in_as
+    account = create_account(name: "Validation Failure Owner")
+
+    assert_no_difference -> { Asset.vessels.count } do
+      assert_no_difference -> { ActiveStorage::Blob.count } do
+        assert_no_difference -> { ActiveStorage::Attachment.count } do
+          post vessels_path, params: {
+            asset: {
+              account_id: account.id,
+              name: "",
+              primary_photo: fixture_file_upload("sample.jpg", "image/jpeg")
+            }
+          }
+        end
+      end
+    end
+
+    assert_response :unprocessable_entity
+    assert_includes response.body, "Name can&#39;t be blank"
   end
 
   test "oversized primary photo during vessel creation is rejected" do
@@ -209,7 +251,7 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Primary photo must be a JPEG, PNG, or WEBP image"
   end
 
-  test "invalid primary photo replacement preserves existing photo and other attachments" do
+  test "spoofed primary photo replacement preserves existing photo and other attachments" do
     user = create_user(email: "captain-invalid-replacement@example.test")
     sign_in_as user
     vessel = create_vessel
@@ -224,7 +266,7 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
       assert_no_difference -> { ActiveStorage::Attachment.count } do
         patch vessel_path(vessel), params: {
           asset: {
-            primary_photo: fixture_file_upload("sample.pdf", "application/pdf")
+            primary_photo: fixture_file_upload("sample.pdf", "image/jpeg")
           }
         }
       end

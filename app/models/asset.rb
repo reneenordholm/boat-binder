@@ -49,7 +49,9 @@ class Asset < ApplicationRecord
   def self.primary_photo_upload_error(upload)
     return if upload.blank?
 
-    return PRIMARY_PHOTO_CONTENT_TYPE_ERROR unless PRIMARY_PHOTO_CONTENT_TYPES.include?(upload.content_type.to_s)
+    detected_content_type = primary_photo_upload_content_type(upload)
+
+    return PRIMARY_PHOTO_CONTENT_TYPE_ERROR unless PRIMARY_PHOTO_CONTENT_TYPES.include?(detected_content_type)
     PRIMARY_PHOTO_SIZE_ERROR if primary_photo_upload_size(upload).to_i > PRIMARY_PHOTO_MAX_SIZE
   end
 
@@ -158,6 +160,42 @@ class Asset < ApplicationRecord
     0
   end
   private_class_method :primary_photo_upload_size
+
+  def self.primary_photo_upload_content_type(upload)
+    io = primary_photo_upload_io(upload)
+
+    return Marcel::MimeType.for(name: primary_photo_upload_filename(upload), declared_type: upload.content_type) unless io
+
+    current_position = io.pos if io.respond_to?(:pos)
+    io.rewind if io.respond_to?(:rewind)
+
+    Marcel::MimeType.for(
+      io,
+      name: primary_photo_upload_filename(upload),
+      declared_type: upload.content_type
+    )
+  ensure
+    if io && current_position && io.respond_to?(:seek)
+      io.seek(current_position)
+    elsif io&.respond_to?(:rewind)
+      io.rewind
+    end
+  end
+  private_class_method :primary_photo_upload_content_type
+
+  def self.primary_photo_upload_io(upload)
+    return upload.tempfile if upload.respond_to?(:tempfile) && upload.tempfile
+
+    upload if upload.respond_to?(:read)
+  end
+  private_class_method :primary_photo_upload_io
+
+  def self.primary_photo_upload_filename(upload)
+    return upload.original_filename if upload.respond_to?(:original_filename)
+
+    upload.path if upload.respond_to?(:path)
+  end
+  private_class_method :primary_photo_upload_filename
 
   def normalize_text_fields
     %i[name make model marina slip registration_number notes].each do |attribute|

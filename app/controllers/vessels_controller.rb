@@ -1,4 +1,6 @@
 class VesselsController < ApplicationController
+  PrimaryPhotoAttachmentError = Class.new(StandardError)
+
   before_action :require_write_access!, only: %i[new create edit update destroy destroy_primary_photo]
   before_action :set_vessel, only: %i[show edit update destroy destroy_primary_photo]
 
@@ -46,14 +48,18 @@ class VesselsController < ApplicationController
       return
     end
 
-    @vessel.primary_photo.attach(primary_photo_upload) if primary_photo_upload.present?
-
-    if @vessel.save
-      redirect_to vessel_path(@vessel), notice: "Vessel added."
-    else
-      @accounts = scoped_accounts.active.ordered
-      render :new, status: :unprocessable_entity
+    ActiveRecord::Base.transaction do
+      @vessel.save!
+      attach_primary_photo!(@vessel, primary_photo_upload) if primary_photo_upload.present?
     end
+
+    redirect_to vessel_path(@vessel), notice: "Vessel added."
+  rescue ActiveRecord::RecordInvalid
+    @accounts = scoped_accounts.active.ordered
+    render :new, status: :unprocessable_entity
+  rescue PrimaryPhotoAttachmentError => error
+    Rails.logger.error("Primary photo attachment failed for vessel create: #{error.message}")
+    render_vessel_form_with_primary_photo_error(@vessel, "could not be attached. Please try again.", :new)
   end
 
   def edit
@@ -90,6 +96,15 @@ class VesselsController < ApplicationController
   end
 
   private
+
+  def attach_primary_photo!(vessel, upload)
+    vessel.primary_photo.attach(upload)
+    raise PrimaryPhotoAttachmentError, "primary photo was not attached" unless vessel.primary_photo.attached?
+  rescue StandardError => error
+    raise if error.is_a?(PrimaryPhotoAttachmentError)
+
+    raise PrimaryPhotoAttachmentError, "#{error.class}: #{error.message}"
+  end
 
   def set_vessel
     @vessel = scoped_vessels.includes({ account: :contacts }, primary_photo_attachment: :blob).find_by!(slug: params[:id])
