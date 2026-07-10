@@ -77,12 +77,18 @@ class VesselsController < ApplicationController
       return
     end
 
-    if @vessel.update(vessel_params)
-      redirect_to vessel_path(@vessel), notice: "Vessel updated."
-    else
-      @accounts = owner_options_for(@vessel)
-      render :edit, status: :unprocessable_entity
+    ActiveRecord::Base.transaction do
+      @vessel.update!(permitted_attributes)
+      attach_primary_photo!(@vessel, primary_photo_upload) if primary_photo_upload.present?
     end
+
+    redirect_to vessel_path(@vessel), notice: "Vessel updated."
+  rescue ActiveRecord::RecordInvalid
+    @accounts = owner_options_for(@vessel)
+    render :edit, status: :unprocessable_entity
+  rescue PrimaryPhotoAttachmentError => error
+    Rails.logger.error("Primary photo attachment failed for vessel update: #{error.message}")
+    render_vessel_form_with_primary_photo_error(@vessel, "could not be attached. Please try again.", :edit)
   end
 
   def destroy

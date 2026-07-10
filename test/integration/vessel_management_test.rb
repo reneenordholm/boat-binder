@@ -361,6 +361,65 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
     assert_equal "image/png", vessel.primary_photo.blob.content_type
   end
 
+  test "valid replacement is not attached when vessel update validation fails" do
+    sign_in_as
+    vessel = create_vessel(name: "Validation Photo")
+    vessel.primary_photo.attach(fixture_file_upload("sample.jpg", "image/jpeg"))
+    original_blob_id = vessel.primary_photo.blob.id
+
+    assert_no_difference -> { ActiveStorage::Blob.count } do
+      assert_no_difference -> { ActiveStorage::Attachment.count } do
+        patch vessel_path(vessel), params: {
+          asset: {
+            name: "",
+            primary_photo: fixture_file_upload("sample.png", "image/png")
+          }
+        }
+      end
+    end
+
+    assert_response :unprocessable_entity
+    vessel.reload
+    assert_equal "Validation Photo", vessel.name
+    assert vessel.primary_photo.attached?
+    assert_equal original_blob_id, vessel.primary_photo.blob.id
+    assert_includes response.body, "Name can&#39;t be blank"
+
+    patch vessel_path(vessel), params: {
+      asset: {
+        name: "Validation Photo II",
+        primary_photo: fixture_file_upload("sample.png", "image/png")
+      }
+    }
+
+    assert_redirected_to vessel_path(vessel)
+    vessel.reload
+    assert_equal "Validation Photo II", vessel.name
+    assert vessel.primary_photo.attached?
+    assert_not_equal original_blob_id, vessel.primary_photo.blob.id
+    assert_equal "image/png", vessel.primary_photo.blob.content_type
+  end
+
+  test "vessel update without a new primary photo still works" do
+    sign_in_as
+    vessel = create_vessel(name: "No Photo Update")
+    vessel.primary_photo.attach(fixture_file_upload("sample.jpg", "image/jpeg"))
+    original_blob_id = vessel.primary_photo.blob.id
+
+    patch vessel_path(vessel), params: {
+      asset: {
+        name: "No Photo Update II",
+        marina: "Shilshole Bay Marina"
+      }
+    }
+
+    assert_redirected_to vessel_path(vessel)
+    vessel.reload
+    assert_equal "No Photo Update II", vessel.name
+    assert_equal "Shilshole Bay Marina", vessel.marina
+    assert_equal original_blob_id, vessel.primary_photo.blob.id
+  end
+
   test "vessel show displays primary photo when attached" do
     sign_in_as
     vessel = create_vessel
