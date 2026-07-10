@@ -60,23 +60,30 @@
       <% if @vessels.any? %>
         <div class="grid gap-4 lg:grid-cols-2">
           <% @vessels.each do |vessel| %>
-            <%= link_to vessel_path(vessel), class: app_card_class("block p-5 transition hover:-translate-y-0.5 hover:border-[#7DAAB3] hover:shadow-md") do %>
-              <div class="flex items-start justify-between gap-4">
-                <div>
-                  <h3 class="text-xl font-black"><%= vessel.name %></h3>
-                  <p class="mt-1 text-sm font-semibold text-[#1E5A7A]"><%= vessel.account.name %></p>
-                  <p class="mt-2 text-sm text-slate-600"><%= vessel.location_label %></p>
+            <%= link_to vessel_path(vessel), class: app_card_class("block overflow-hidden transition hover:-translate-y-0.5 hover:border-[#7DAAB3] hover:shadow-md") do %>
+              <%= vessel_primary_photo(
+                vessel,
+                image_class: "aspect-[16/7] w-full object-cover",
+                placeholder_class: "flex aspect-[16/7] w-full flex-col items-center justify-center bg-[#0B1F35] p-4 text-center"
+              ) %>
+              <div class="p-5">
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 class="text-xl font-black"><%= vessel.name %></h3>
+                    <p class="mt-1 text-sm font-semibold text-[#1E5A7A]"><%= vessel.account.name %></p>
+                    <p class="mt-2 text-sm text-slate-600"><%= vessel.location_label %></p>
+                  </div>
+                  <%= status_chip(vessel.status_label, tone: vessel.status_tone) %>
                 </div>
-                <%= status_chip(vessel.status_label, tone: vessel.status_tone) %>
-              </div>
-              <div class="mt-5 grid grid-cols-2 gap-3 border-t border-[#F0E8DE] pt-4 text-sm">
-                <div>
-                  <p class="font-semibold text-slate-500">Upcoming</p>
-                  <p class="mt-1 font-black"><%= vessel.next_reminder&.title || "Clear" %></p>
-                </div>
-                <div>
-                  <p class="font-semibold text-slate-500">Last visit</p>
-                  <p class="mt-1 font-black"><%= short_date(vessel.last_visit&.visit_date) %></p>
+                <div class="mt-5 grid grid-cols-2 gap-3 border-t border-[#F0E8DE] pt-4 text-sm">
+                  <div>
+                    <p class="font-semibold text-slate-500">Upcoming</p>
+                    <p class="mt-1 font-black"><%= vessel.next_reminder&.title || "Clear" %></p>
+                  </div>
+                  <div>
+                    <p class="font-semibold text-slate-500">Last visit</p>
+                    <p class="mt-1 font-black"><%= short_date(vessel.last_visit&.visit_date) %></p>
+                  </div>
                 </div>
               </div>
             <% end %>

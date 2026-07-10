@@ -1,18 +1,28 @@
 <section class="space-y-6">
   <div class="overflow-hidden rounded-md bg-[#0B1F35] text-white shadow-sm shadow-[#0B1F35]/15">
     <div class="p-6 md:p-8">
-      <div class="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-        <div>
-          <p class="text-sm font-black uppercase tracking-normal text-[#B9D5DA]"><%= @vessel.account.name %></p>
-          <h1 class="mt-2 text-4xl font-black tracking-normal md:text-5xl"><%= @vessel.name %></h1>
-          <p class="mt-3 max-w-2xl text-base leading-7 text-[#D6E8EB]"><%= @vessel.display_model.presence || "Vessel profile" %></p>
+      <div class="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
+        <div class="flex flex-col gap-5 md:flex-row md:items-start md:justify-between lg:block">
+          <div>
+            <p class="text-sm font-black uppercase tracking-normal text-[#B9D5DA]"><%= @vessel.account.name %></p>
+            <h1 class="mt-2 text-4xl font-black tracking-normal md:text-5xl"><%= @vessel.name %></h1>
+            <p class="mt-3 max-w-2xl text-base leading-7 text-[#D6E8EB]"><%= @vessel.display_model.presence || "Vessel profile" %></p>
+          </div>
+          <div class="mt-5 flex flex-wrap items-center gap-2 md:mt-0 md:justify-end lg:justify-start">
+            <%= status_chip(@vessel.status_label, tone: @vessel.status_tone) %>
+            <% if can_manage_records? %>
+              <%= link_to "Start Visit", new_vessel_service_visit_path(@vessel), class: primary_button_class("min-h-12 bg-[#7DAAB3] px-5 py-3 text-base text-[#0B1F35] hover:bg-[#B9D5DA]") %>
+              <%= link_to "Edit", edit_vessel_path(@vessel), class: secondary_button_class("min-h-12 border-white/20 bg-white/10 px-5 py-3 text-base text-white hover:bg-white/20 hover:text-white") %>
+            <% end %>
+          </div>
         </div>
-        <div class="flex flex-wrap items-center gap-2 md:justify-end">
-          <%= status_chip(@vessel.status_label, tone: @vessel.status_tone) %>
-          <% if can_manage_records? %>
-            <%= link_to "Start Visit", new_vessel_service_visit_path(@vessel), class: primary_button_class("min-h-12 bg-[#7DAAB3] px-5 py-3 text-base text-[#0B1F35] hover:bg-[#B9D5DA]") %>
-            <%= link_to "Edit", edit_vessel_path(@vessel), class: secondary_button_class("min-h-12 border-white/20 bg-white/10 px-5 py-3 text-base text-white hover:bg-white/20 hover:text-white") %>
-          <% end %>
+
+        <div class="overflow-hidden rounded-md bg-white/10 ring-1 ring-white/10">
+          <%= vessel_primary_photo(
+            @vessel,
+            image_class: "aspect-[16/10] w-full object-cover",
+            placeholder_class: "flex aspect-[16/10] w-full flex-col items-center justify-center bg-[#12304D] p-5 text-center"
+          ) %>
         </div>
       </div>
 

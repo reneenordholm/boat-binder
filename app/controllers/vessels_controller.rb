@@ -5,7 +5,7 @@ class VesselsController < ApplicationController
   def index
     @query = params[:q].to_s.strip
     @include_inactive = params[:include_inactive].present?
-    @vessels = scoped_vessels.search(@query).includes(:account, :reminders, :service_visits, :documents, :binder_notes).ordered
+    @vessels = scoped_vessels.search(@query).includes(:account, :reminders, :service_visits, :documents, :binder_notes).with_attached_primary_photo.ordered
     @vessels = @vessels.active unless @include_inactive
   end
 
@@ -71,7 +71,7 @@ class VesselsController < ApplicationController
   private
 
   def set_vessel
-    @vessel = scoped_vessels.includes(account: :contacts).find_by!(slug: params[:id])
+    @vessel = scoped_vessels.includes({ account: :contacts }, primary_photo_attachment: :blob).find_by!(slug: params[:id])
   end
 
   def vessel_params
@@ -85,7 +85,8 @@ class VesselsController < ApplicationController
       :marina,
       :slip,
       :notes,
-      :active
+      :active,
+      :primary_photo
     )
   end
 

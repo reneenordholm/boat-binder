@@ -1,5 +1,11 @@
 class Asset < ApplicationRecord
   ASSET_TYPES = %w[vessel home pet audit other].freeze
+  PRIMARY_PHOTO_CONTENT_TYPES = %w[
+    image/jpeg
+    image/png
+    image/webp
+  ].freeze
+  PRIMARY_PHOTO_MAX_SIZE = 10.megabytes
 
   belongs_to :account
   has_many :service_visits, dependent: :destroy
@@ -8,6 +14,7 @@ class Asset < ApplicationRecord
   has_many :documents, dependent: :destroy
   has_many :asset_engines, dependent: :destroy
   has_many :asset_batteries, dependent: :destroy
+  has_one_attached :primary_photo
 
   before_validation :normalize_text_fields
   before_validation :ensure_slug
@@ -19,6 +26,7 @@ class Asset < ApplicationRecord
   validates :year, numericality: { only_integer: true, greater_than: 1900, less_than_or_equal_to: Date.current.year + 1 }, allow_blank: true
   validates :length, numericality: { greater_than: 0 }, allow_blank: true
   validates :registration_number, uniqueness: { scope: :account_id }, allow_blank: true
+  validate :primary_photo_is_safe_upload
 
   scope :active, -> { where(active: true) }
   scope :inactive, -> { where(active: false) }
@@ -113,6 +121,25 @@ class Asset < ApplicationRecord
 
   def default_engines
     { "Port" => 1, "Starboard" => 2 }
+  end
+
+  def primary_photo_is_safe_upload
+    return unless primary_photo.attached?
+
+    blob = primary_photo.blob
+    unsafe_upload = false
+
+    unless PRIMARY_PHOTO_CONTENT_TYPES.include?(blob.content_type.to_s)
+      errors.add(:primary_photo, "must be a JPEG, PNG, or WEBP image")
+      unsafe_upload = true
+    end
+
+    if blob.byte_size > PRIMARY_PHOTO_MAX_SIZE
+      errors.add(:primary_photo, "must be 10 MB or smaller")
+      unsafe_upload = true
+    end
+
+    primary_photo.purge if unsafe_upload
   end
 
   def normalize_text_fields
