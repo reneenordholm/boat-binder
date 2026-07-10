@@ -9,6 +9,7 @@ Rails.application.routes.draw do
   resources :owners, controller: :accounts, except: %i[destroy]
 
   resources :vessels do
+    delete :primary_photo, on: :member, action: :destroy_primary_photo
     resources :service_visits, only: %i[index new create show] do
       get :report, on: :member
     end

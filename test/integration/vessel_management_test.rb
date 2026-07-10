@@ -85,6 +85,23 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "input[type=file][name=?][accept=?]", "asset[primary_photo]", Asset::PRIMARY_PHOTO_CONTENT_TYPES.join(",")
     assert_includes response.body, "Upload a JPEG, PNG, or WEBP image up to 10 MB."
+    assert_select "form[action=?]", primary_photo_vessel_path(vessel), count: 0
+  end
+
+  test "vessel edit form exposes remove button that submits delete when primary photo exists" do
+    sign_in_as
+    vessel = create_vessel
+    vessel.primary_photo.attach(fixture_file_upload("sample.jpg", "image/jpeg"))
+
+    get edit_vessel_path(vessel)
+
+    assert_response :success
+    assert_select "a[href=?][data-turbo-method=?]", primary_photo_vessel_path(vessel), "delete", count: 0
+    assert_select "form[action=?][method=?]", primary_photo_vessel_path(vessel), "post" do
+      assert_select "input[name=?][value=?]", "_method", "delete"
+      assert_select "button", text: /Remove photo/
+    end
+    assert_includes response.body, "Remove this vessel photo?"
   end
 
   test "invalid vessel primary photo file type is rejected" do
@@ -170,6 +187,55 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
     assert_select "[aria-label=?]", "Primary photo placeholder for #{vessel.name}"
   end
 
+  test "internal users remove vessel primary photos without affecting other attachments" do
+    %w[captain admin].each do |role|
+      user = create_user(email: "#{role}-remove-photo@example.test", role: role)
+      sign_in_as user
+      vessel = create_vessel(name: "Remove Photo #{role.titleize}")
+      vessel.primary_photo.attach(fixture_file_upload("sample.jpg", "image/jpeg"))
+      primary_photo_blob_id = vessel.primary_photo.blob.id
+      document = vessel.documents.create!(account: vessel.account, title: "Insurance #{role}", document_type: "insurance")
+      document.file.attach(fixture_file_upload("sample.pdf", "application/pdf"))
+      service_visit = vessel.service_visits.create!(performed_by_user: user, visit_date: Date.current, summary: "Dock check")
+      service_visit.photos.attach(fixture_file_upload("sample.png", "image/png"))
+
+      assert_no_difference -> { Asset.count } do
+        delete primary_photo_vessel_path(vessel)
+      end
+
+      assert_redirected_to vessel_path(vessel)
+      follow_redirect!
+      assert_includes response.body, "Primary vessel photo removed."
+      assert_not vessel.reload.primary_photo.attached?
+      assert_not ActiveStorage::Blob.exists?(primary_photo_blob_id)
+      assert document.reload.file.attached?
+      assert service_visit.reload.photos.attached?
+      assert_select "[aria-label=?]", "Primary photo placeholder for #{vessel.name}"
+
+      get root_path
+      assert_response :success
+      assert_select "[aria-label=?]", "Primary photo placeholder for #{vessel.name}"
+
+      get vessels_path
+      assert_response :success
+      assert_select "[aria-label=?]", "Primary photo placeholder for #{vessel.name}"
+    end
+  end
+
+  test "removing a missing vessel primary photo is graceful" do
+    sign_in_as
+    vessel = create_vessel
+
+    assert_no_difference -> { ActiveStorage::Blob.count } do
+      delete primary_photo_vessel_path(vessel)
+    end
+
+    assert_redirected_to vessel_path(vessel)
+    follow_redirect!
+    assert_includes response.body, "Primary vessel photo removed."
+    assert_select "[aria-label=?]", "Primary photo placeholder for #{vessel.name}"
+  end
+
   test "owner vessel list remains scoped when primary photos exist" do
     owner_account = create_account(name: "Elliott Family")
     other_account = create_account(name: "Harbor North")
@@ -206,6 +272,23 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to root_path
     assert_not other_vessel.reload.primary_photo.attached?
+  end
+
+  test "owner cannot remove another account vessel primary photo" do
+    owner_account = create_account(name: "Elliott Family")
+    other_account = create_account(name: "Harbor North")
+    other_vessel = create_vessel(account: other_account, name: "Restricted Vessel")
+    other_vessel.primary_photo.attach(fixture_file_upload("sample.jpg", "image/jpeg"))
+    primary_photo_blob_id = other_vessel.primary_photo.blob.id
+    owner = create_user(email: "owner-photo-remove@example.test", role: "owner")
+    create_account_membership(user: owner, account: owner_account)
+    sign_in_as owner
+
+    delete primary_photo_vessel_path(other_vessel)
+
+    assert_redirected_to root_path
+    assert other_vessel.reload.primary_photo.attached?
+    assert ActiveStorage::Blob.exists?(primary_photo_blob_id)
   end
 
   test "owner role cannot reassign a vessel account" do
