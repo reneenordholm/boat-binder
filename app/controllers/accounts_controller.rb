@@ -12,6 +12,7 @@ class AccountsController < ApplicationController
   def show
     @contacts = @account.contacts.order(:role, :name)
     @owner_user_memberships = @account.owner_user_memberships
+    @subscription = @account.subscription
     @vessels = @account.assets.vessels.ordered
     @documents = @account.documents.includes(:asset).order(created_at: :desc).limit(6)
   end
@@ -22,11 +23,14 @@ class AccountsController < ApplicationController
   end
 
   def create
-    @account = Account.new(account_params)
-    @account.account_type = "client"
-    @contact = @account.contacts.new(contact_params.merge(role: "Owner"))
+    creator = AccountCreator.call(
+      account_attributes: account_params.merge(account_type: "client"),
+      contact_attributes: contact_params.merge(role: "Owner")
+    )
+    @account = creator.account
+    @contact = creator.contact
 
-    if @account.save
+    if creator.success?
       redirect_to owner_path(@account), notice: "Owner added."
     else
       render :new, status: :unprocessable_entity

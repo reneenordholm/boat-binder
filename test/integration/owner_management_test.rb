@@ -5,25 +5,29 @@ class OwnerManagementTest < ActionDispatch::IntegrationTest
     sign_in_as create_user(email: "admin-owner-timezone@example.test", role: "admin")
 
     assert_difference -> { Account.count }, 1 do
-      post owners_path, params: {
-        account: {
-          name: "Solano Family",
-          notes: "Prefers text updates.",
-          active: "1",
-          time_zone: "America/New_York"
-        },
-        contact: {
-          name: "Maya Solano",
-          email: "maya@example.test",
-          phone: "555-0199"
+      assert_difference -> { Subscription.count }, 1 do
+        post owners_path, params: {
+          account: {
+            name: "Solano Family",
+            notes: "Prefers text updates.",
+            active: "1",
+            time_zone: "America/New_York"
+          },
+          contact: {
+            name: "Maya Solano",
+            email: "maya@example.test",
+            phone: "555-0199"
+          }
         }
-      }
+      end
     end
 
     owner = Account.find_by!(name: "Solano Family")
     assert_redirected_to owner_path(owner)
     assert_equal "Maya Solano", owner.primary_contact.name
     assert_equal "America/New_York", owner.time_zone
+    assert_equal "legacy", owner.subscription.plan
+    assert_equal "active", owner.subscription.status
 
     patch owner_path(owner), params: {
       account: {
@@ -134,6 +138,38 @@ class OwnerManagementTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_includes response.body, "No linked owner users yet."
     assert_includes response.body, "No additional contact information saved yet."
+    assert_includes response.body, "Subscription"
+    assert_includes response.body, "Legacy"
+    assert_includes response.body, "Active"
+    assert_includes response.body, "Local"
+    assert_includes response.body, "Access eligible"
+    assert_includes response.body, "Not recorded"
+  end
+
+  test "owner page renders partially populated external subscription state in account time zone" do
+    admin = create_user(email: "admin-subscription-summary@example.test", role: "admin")
+    account = create_account(name: "Subscription Summary Owner", time_zone: "America/New_York")
+    account.subscription.update!(
+      plan: "professional",
+      status: "trialing",
+      provider: "stripe",
+      trial_ends_at: Time.utc(2026, 7, 15, 20, 0),
+      current_period_ends_at: Time.utc(2026, 8, 15, 20, 0),
+      cancel_at_period_end: true,
+      last_synced_at: Time.utc(2026, 7, 12, 18, 30)
+    )
+    sign_in_as admin
+
+    get owner_path(account)
+
+    assert_response :success
+    assert_includes response.body, "Professional"
+    assert_includes response.body, "Trialing"
+    assert_includes response.body, "Stripe"
+    assert_includes response.body, "Cancels at period end"
+    assert_includes response.body, "Jul 15, 2026 at 4:00 PM EDT"
+    assert_includes response.body, "Aug 15, 2026 at 4:00 PM EDT"
+    assert_includes response.body, "Jul 12, 2026 at 2:30 PM EDT"
   end
 
   test "owner form clarifies manual contact information does not grant access" do

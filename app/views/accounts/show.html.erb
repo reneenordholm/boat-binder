@@ -78,6 +78,61 @@
           <p class="mt-3 text-sm text-slate-600">No additional contact information saved yet.</p>
         <% end %>
       </div>
+
+      <div class="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 class="text-xl font-black">Subscription</h2>
+            <p class="mt-2 text-sm leading-6 text-slate-600">Read-only local subscription state. Billing provider actions are intentionally deferred.</p>
+          </div>
+          <% if @subscription %>
+            <%= status_chip(@subscription.access_allowed? ? "Access eligible" : "Access paused", tone: @subscription.access_allowed? ? :success : :warning) %>
+          <% end %>
+        </div>
+
+        <% if @subscription %>
+          <dl class="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
+            <div>
+              <dt class="font-semibold text-slate-800">Plan</dt>
+              <dd class="mt-1"><%= @subscription.plan_label %></dd>
+            </div>
+            <div>
+              <dt class="font-semibold text-slate-800">Status</dt>
+              <dd class="mt-1"><%= @subscription.status_label %></dd>
+            </div>
+            <div>
+              <dt class="font-semibold text-slate-800">Provider</dt>
+              <dd class="mt-1"><%= @subscription.provider_label %></dd>
+            </div>
+            <div>
+              <dt class="font-semibold text-slate-800">Cancellation state</dt>
+              <dd class="mt-1">
+                <% if @subscription.canceled_at.present? %>
+                  Canceled <%= local_datetime(@subscription.canceled_at, account: @account) %>
+                <% elsif @subscription.cancel_at_period_end? %>
+                  Cancels at period end
+                <% else %>
+                  Not scheduled
+                <% end %>
+              </dd>
+            </div>
+            <div>
+              <dt class="font-semibold text-slate-800">Trial end</dt>
+              <dd class="mt-1"><%= local_datetime(@subscription.trial_ends_at, account: @account) %></dd>
+            </div>
+            <div>
+              <dt class="font-semibold text-slate-800">Current period end</dt>
+              <dd class="mt-1"><%= local_datetime(@subscription.current_period_ends_at, account: @account) %></dd>
+            </div>
+            <div>
+              <dt class="font-semibold text-slate-800">Last synchronized</dt>
+              <dd class="mt-1"><%= local_datetime(@subscription.last_synced_at, account: @account) %></dd>
+            </div>
+          </dl>
+        <% else %>
+          <p class="mt-3 text-sm text-slate-600">No local subscription record has been created yet.</p>
+        <% end %>
+      </div>
     </section>
 
     <section class="space-y-3">

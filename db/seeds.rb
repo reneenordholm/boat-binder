@@ -21,8 +21,16 @@ AssetBattery.delete_all
 AssetEngine.delete_all
 Asset.delete_all
 Contact.delete_all
+Subscription.delete_all
 Account.delete_all
 User.delete_all
+
+def create_account!(attributes)
+  creator = AccountCreator.call(account_attributes: attributes)
+  raise creator.account.errors.full_messages.to_sentence unless creator.success?
+
+  creator.account
+end
 
 captain = User.create!(
   name: "Hayes Captain",
@@ -42,13 +50,13 @@ admin = User.create!(
   active: true
 )
 
-hayes = Account.create!(name: "Hayes Yacht Company", account_type: "internal")
+hayes = create_account!(name: "Hayes Yacht Company", account_type: "internal")
 
 owners = [
-  Account.create!(name: "Elliott Family", account_type: "client", notes: "Owns multiple vessels and prefers concise photo reports."),
-  Account.create!(name: "Harbor North LLC", account_type: "client", notes: "Operations manager approves maintenance work by email."),
-  Account.create!(name: "Marisol Trust", account_type: "client", notes: "Seasonal sailing schedule with spring commissioning checks."),
-  Account.create!(name: "Carter and Vale", account_type: "client", active: false, notes: "Inactive account retained for historical records.")
+  create_account!(name: "Elliott Family", account_type: "client", notes: "Owns multiple vessels and prefers concise photo reports."),
+  create_account!(name: "Harbor North LLC", account_type: "client", notes: "Operations manager approves maintenance work by email."),
+  create_account!(name: "Marisol Trust", account_type: "client", notes: "Seasonal sailing schedule with spring commissioning checks."),
+  create_account!(name: "Carter and Vale", account_type: "client", active: false, notes: "Inactive account retained for historical records.")
 ]
 
 owners.each_with_index do |account, index|

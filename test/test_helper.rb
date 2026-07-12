@@ -9,7 +9,16 @@ module ActiveSupport
 
     # Add more helper methods to be used by all tests here...
     def create_account(name: "Hayes Yacht Company", account_type: "client", time_zone: Account::DEFAULT_TIME_ZONE)
-      Account.create!(name: name, account_type: account_type, time_zone: time_zone)
+      creator = AccountCreator.call(
+        account_attributes: {
+          name: name,
+          account_type: account_type,
+          time_zone: time_zone
+        }
+      )
+      raise ActiveRecord::RecordInvalid, creator.account unless creator.success?
+
+      creator.account
     end
 
     def create_user(email: "captain@example.test", role: "captain", name: nil, active: true)
