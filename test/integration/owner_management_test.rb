@@ -77,6 +77,50 @@ class OwnerManagementTest < ActionDispatch::IntegrationTest
     assert_select "select[name='account[time_zone]'] option[value='America/New_York'][selected]"
   end
 
+  test "owner creation failure after rollback rerenders create form action with submitted values" do
+    original_default_attributes = Subscription.method(:default_local_attributes)
+    Subscription.define_singleton_method(:default_local_attributes) do
+      {
+        plan: "legacy",
+        status: "unsupported",
+        provider: "local"
+      }
+    end
+    sign_in_as create_user(email: "admin-rollback-form@example.test", role: "admin")
+
+    assert_no_difference -> { Account.count } do
+      assert_no_difference -> { Subscription.count } do
+        assert_no_difference -> { Contact.count } do
+          post owners_path, params: {
+            account: {
+              name: "Rollback Form Owner",
+              notes: "These notes should stay.",
+              active: "1",
+              time_zone: "America/New_York"
+            },
+            contact: {
+              name: "Rollback Contact",
+              email: "rollback-contact@example.test",
+              phone: "555-0190"
+            }
+          }
+        end
+      end
+    end
+
+    assert_response :unprocessable_entity
+    assert_select "form[action='#{owners_path}']", count: 1
+    assert_select "form[action*='/owners/']", count: 0
+    assert_select "input[name='account[name]'][value='Rollback Form Owner']"
+    assert_select "textarea[name='account[notes]']", text: "These notes should stay."
+    assert_select "input[name='contact[name]'][value='Rollback Contact']"
+    assert_select "input[name='contact[email]'][value='rollback-contact@example.test']"
+    assert_includes response.body, "Status is not included in the list"
+    assert_includes response.body, "Account could not be created with subscription state."
+  ensure
+    Subscription.define_singleton_method(:default_local_attributes, original_default_attributes)
+  end
+
   test "inactive owners are hidden by default but can be included" do
     sign_in_as
     active_owner = create_account(name: "Active Owner")

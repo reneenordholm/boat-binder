@@ -6,8 +6,9 @@ class AccountCreator
   end
 
   def initialize(account_attributes:, contact_attributes: nil)
-    @account = Account.new(account_attributes)
+    @account_attributes = account_attributes.to_h
     @contact_attributes = contact_attributes&.to_h
+    @account = Account.new(@account_attributes)
     @contact = build_contact
   end
 
@@ -22,8 +23,8 @@ class AccountCreator
     end
 
     @success = true
-  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique
-    account.errors.add(:base, "Account could not be created with subscription state.") if account.errors.empty?
+  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => error
+    rebuild_models_after_rollback(error)
     false
   end
 
@@ -33,7 +34,7 @@ class AccountCreator
 
   private
 
-  attr_reader :contact_attributes
+  attr_reader :account_attributes, :contact_attributes
 
   def build_contact
     return unless contact_attributes
@@ -46,5 +47,29 @@ class AccountCreator
     contact&.valid?
 
     account.errors.empty? && (contact.nil? || contact.errors.empty?)
+  end
+
+  def rebuild_models_after_rollback(error)
+    account_errors = account.errors.full_messages
+    contact_errors = contact&.errors&.full_messages || []
+
+    @account = Account.new(account_attributes)
+    @contact = build_contact
+
+    account_errors.each { |message| account.errors.add(:base, message) }
+    contact_errors.each { |message| contact&.errors&.add(:base, message) }
+
+    add_failure_error(error)
+  end
+
+  def add_failure_error(error)
+    record = error.respond_to?(:record) ? error.record : nil
+    if record == contact && contact&.errors&.any?
+      contact.errors.full_messages.each { |message| account.errors.add(:base, message) }
+    elsif record&.errors&.any?
+      record.errors.full_messages.each { |message| account.errors.add(:base, message) }
+    end
+
+    account.errors.add(:base, "Account could not be created with subscription state.")
   end
 end
