@@ -11,6 +11,7 @@ class AccountsController < ApplicationController
 
   def show
     @contacts = @account.contacts.order(:role, :name)
+    @owner_user_memberships = @account.owner_user_memberships
     @vessels = @account.assets.vessels.ordered
     @documents = @account.documents.includes(:asset).order(created_at: :desc).limit(6)
   end
