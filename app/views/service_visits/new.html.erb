@@ -122,7 +122,11 @@
 
     <section class="space-y-4 rounded-md border border-slate-200 bg-white p-4 shadow-sm">
       <h2 class="text-lg font-black">Photos</h2>
-      <%= form.file_field :photos, multiple: true, accept: "image/*", capture: "environment", class: "block min-h-12 w-full rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-base file:mr-3 file:rounded-md file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:font-bold file:text-white" %>
+      <div>
+        <%= form.label :photos, "Choose or take photos", class: "text-sm font-semibold text-slate-700" %>
+        <%= form.file_field :photos, multiple: true, accept: ServiceVisit::ALLOWED_PHOTO_CONTENT_TYPES.join(","), class: "mt-2 block min-h-12 w-full rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-base file:mr-3 file:rounded-md file:border-0 file:bg-cyan-700 file:px-4 file:py-2 file:font-bold file:text-white" %>
+        <p class="mt-2 text-sm leading-6 text-slate-600">Add JPEG, PNG, or WEBP photos from your camera or photo library.</p>
+      </div>
     </section>
 
     <div class="sticky bottom-16 z-20 -mx-4 bg-slate-50/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:bg-transparent md:px-0">

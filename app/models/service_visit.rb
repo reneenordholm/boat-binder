@@ -1,4 +1,10 @@
 class ServiceVisit < ApplicationRecord
+  ALLOWED_PHOTO_CONTENT_TYPES = %w[
+    image/jpeg
+    image/png
+    image/webp
+  ].freeze
+
   DEFAULT_INSPECTION_LABELS = [
     "Hull",
     "Bilge",
@@ -21,6 +27,7 @@ class ServiceVisit < ApplicationRecord
   validates :visit_date, presence: true
   validates :engine_hours, numericality: { greater_than_or_equal_to: 0 }, allow_blank: true
   validates :summary, :condition_notes, :follow_up_notes, length: { maximum: 2_000 }
+  validate :photos_are_safe_uploads
 
   scope :recent, -> { order(visit_date: :desc, created_at: :desc) }
 
@@ -47,6 +54,19 @@ class ServiceVisit < ApplicationRecord
   end
 
   private
+
+  def photos_are_safe_uploads
+    return unless photos.attached?
+
+    invalid_photos = photos.reject do |photo|
+      ALLOWED_PHOTO_CONTENT_TYPES.include?(photo.blob.content_type.to_s)
+    end
+
+    return if invalid_photos.none?
+
+    errors.add(:photos, "must be JPEG, PNG, or WEBP images")
+    invalid_photos.each(&:purge)
+  end
 
   def owner_summary_recipient
     User.joins(:account_memberships)

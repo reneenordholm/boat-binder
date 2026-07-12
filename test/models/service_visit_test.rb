@@ -37,4 +37,75 @@ class ServiceVisitTest < ActiveSupport::TestCase
 
     assert_equal [ active_battery ], visit.service_visit_battery_checks.map(&:asset_battery)
   end
+
+  test "one invalid photo adds one validation error and purges the attachment" do
+    visit = create_service_visit
+    visit.photos.attach(uploaded_photo("sample.pdf", "application/pdf"))
+    invalid_blob_ids = visit.photos.attachments.map { |attachment| attachment.blob.id }
+
+    assert_not visit.valid?
+    assert_equal [ photo_upload_error ], visit.errors[:photos]
+    visit.reload
+    assert_not visit.photos.attached?
+    assert invalid_blob_ids.none? { |blob_id| ActiveStorage::Blob.exists?(blob_id) }
+  end
+
+  test "multiple invalid photos add one validation error and purge invalid attachments" do
+    visit = create_service_visit
+    visit.photos.attach([
+      uploaded_photo("sample.pdf", "application/pdf"),
+      uploaded_photo("sample.exe", "application/x-msdownload")
+    ])
+    invalid_blob_ids = visit.photos.attachments.map { |attachment| attachment.blob.id }
+
+    assert_not visit.valid?
+    assert_equal [ photo_upload_error ], visit.errors[:photos]
+    visit.reload
+    assert_not visit.photos.attached?
+    assert invalid_blob_ids.none? { |blob_id| ActiveStorage::Blob.exists?(blob_id) }
+  end
+
+  test "mixed valid and invalid photos preserve existing valid attachments" do
+    visit = create_service_visit
+    visit.photos.attach(uploaded_photo("sample.jpg", "image/jpeg"))
+    visit.reload
+    valid_blob_ids = visit.photos.attachments.map { |attachment| attachment.blob.id }
+
+    visit.photos.attach([
+      uploaded_photo("sample.pdf", "application/pdf"),
+      uploaded_photo("sample.exe", "application/x-msdownload")
+    ])
+
+    assert_not visit.valid?
+    assert_equal [ photo_upload_error ], visit.errors[:photos]
+    visit.reload
+    assert_equal valid_blob_ids, visit.photos.attachments.map { |attachment| attachment.blob.id }
+    assert_equal [ "image/jpeg" ], visit.photos.map { |photo| photo.blob.content_type }
+  end
+
+  test "valid multiple photos are accepted" do
+    visit = create_service_visit
+    visit.photos.attach([
+      uploaded_photo("sample.jpg", "image/jpeg"),
+      uploaded_photo("sample.webp", "image/webp")
+    ])
+
+    assert visit.valid?
+    assert_empty visit.errors[:photos]
+    assert_equal [ "image/jpeg", "image/webp" ], visit.photos.map { |photo| photo.blob.content_type }
+  end
+
+  private
+
+  def create_service_visit
+    ServiceVisit.create!(asset: create_vessel, performed_by_user: create_user, visit_date: Date.current)
+  end
+
+  def uploaded_photo(filename, content_type)
+    Rack::Test::UploadedFile.new(file_fixture(filename).to_s, content_type, true)
+  end
+
+  def photo_upload_error
+    "must be JPEG, PNG, or WEBP images"
+  end
 end
