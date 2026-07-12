@@ -3,9 +3,9 @@ Rails.application.routes.draw do
   resources :passwords, param: :token
   resources :invitations, only: %i[edit update], param: :token
 
-  match "/404", to: "errors#not_found", via: :all, as: :not_found
-  match "/422", to: "errors#unprocessable_entity", via: :all
-  match "/500", to: "errors#internal_server_error", via: :all
+  get "/404", to: "errors#not_found", as: :not_found
+  get "/422", to: "errors#unprocessable_entity"
+  get "/500", to: "errors#internal_server_error"
 
   root "dashboard#index"
 

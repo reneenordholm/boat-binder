@@ -100,16 +100,21 @@ class CustomNotFoundTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, "Dashboard</span>"
   end
 
-  test "error endpoints accept non get requests with their intended statuses" do
-    patch "/422"
+  test "application exceptions normalizes non get redispatches to their intended statuses" do
+    unprocessable_env = Rack::MockRequest.env_for("/422", method: "PATCH")
+    server_error_env = Rack::MockRequest.env_for("/500", method: "DELETE")
 
-    assert_response :unprocessable_entity
+    unprocessable_status, _headers, unprocessable_body = ApplicationExceptions.call(unprocessable_env)
+    unprocessable_body.close if unprocessable_body.respond_to?(:close)
 
-    delete "/500"
+    assert_equal 422, unprocessable_status
+    assert_equal "PATCH", unprocessable_env["REQUEST_METHOD"]
 
-    assert_response :internal_server_error
-    assert_not_includes response.body, "404"
-    assert_not_includes response.body, NotFoundMessage.default
+    status, _headers, body = ApplicationExceptions.call(server_error_env)
+    body.close if body.respond_to?(:close)
+
+    assert_equal 500, status
+    assert_equal "DELETE", server_error_env["REQUEST_METHOD"]
   end
 
   test "not found message fallback returns the default message for nil or empty collections" do
@@ -129,6 +134,12 @@ class CustomNotFoundTest < ActionDispatch::IntegrationTest
     assert_raises(NoMethodError) do
       NotFoundMessage.pick(seed: "invalid", messages: Object.new)
     end
+  end
+
+  test "errors controller keeps authenticity token verification enabled" do
+    before_filters = ErrorsController._process_action_callbacks.select { |callback| callback.kind == :before }.map(&:filter)
+
+    assert_includes before_filters, :verify_authenticity_token
   end
 
   private

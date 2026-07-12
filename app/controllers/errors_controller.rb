@@ -1,6 +1,5 @@
 class ErrorsController < ApplicationController
   allow_unauthenticated_access
-  skip_before_action :verify_authenticity_token, raise: false
   skip_before_action :ensure_active_user!
 
   def not_found
