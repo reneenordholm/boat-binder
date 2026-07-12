@@ -25,6 +25,27 @@ class CustomNotFoundTest < ActionDispatch::IntegrationTest
     assert_not_default_rails_error_page
   end
 
+  test "post to unknown route returns custom 404 without secondary routing or csrf failure" do
+    post "/missing-channel-marker", params: { discarded: "value" }
+
+    assert_response :not_found
+    assert_includes response.body, "Boat Binder"
+    assert_includes response.body, "404"
+    assert_includes response.body, "Return to sign in"
+    assert_approved_not_found_message
+    assert_not_includes response.body, "InvalidAuthenticityToken"
+    assert_not_includes response.body, "No route matches"
+  end
+
+  test "patch to unknown route returns custom 404" do
+    patch "/missing-channel-marker", params: { discarded: "value" }
+
+    assert_response :not_found
+    assert_includes response.body, "Boat Binder"
+    assert_approved_not_found_message
+    assert_not_default_rails_error_page
+  end
+
   test "unknown route returns dashboard action for authenticated users" do
     sign_in_as create_user(email: "admin-not-found@example.test", role: "admin")
 
@@ -79,12 +100,35 @@ class CustomNotFoundTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, "Dashboard</span>"
   end
 
-  test "unexpected error route remains configured separately from not found" do
-    assert_routing "/500", controller: "errors", action: "internal_server_error"
+  test "error endpoints accept non get requests with their intended statuses" do
+    patch "/422"
+
+    assert_response :unprocessable_entity
+
+    delete "/500"
+
+    assert_response :internal_server_error
+    assert_not_includes response.body, "404"
+    assert_not_includes response.body, NotFoundMessage.default
   end
 
-  test "not found message fallback returns the default message" do
+  test "not found message fallback returns the default message for nil or empty collections" do
+    assert_equal NotFoundMessage.default, NotFoundMessage.pick(seed: "anything", messages: nil)
     assert_equal NotFoundMessage.default, NotFoundMessage.pick(seed: "anything", messages: [])
+  end
+
+  test "not found message selection is deterministic for a valid collection" do
+    messages = [ "Harbor not found.", "Chart not found." ]
+    first_pick = NotFoundMessage.pick(seed: "stable-request-id", messages: messages)
+
+    assert_equal first_pick, NotFoundMessage.pick(seed: "stable-request-id", messages: messages)
+    assert_includes messages, first_pick
+  end
+
+  test "not found message invalid inputs are not silently swallowed" do
+    assert_raises(NoMethodError) do
+      NotFoundMessage.pick(seed: "invalid", messages: Object.new)
+    end
   end
 
   private

@@ -17,7 +17,5 @@ class NotFoundMessage
     return default unless choices
 
     choices[seed.to_s.bytes.sum % choices.length]
-  rescue StandardError
-    default
   end
 end
