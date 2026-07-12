@@ -30,6 +30,15 @@ class AccountTest < ActiveSupport::TestCase
     assert_equal "America/Los_Angeles", default
   end
 
+  test "time zone migration backfills null and blank values without the application model" do
+    migration_source = Rails.root.join("db/migrate/20260712090000_add_time_zone_to_accounts.rb").read
+
+    assert_not_includes migration_source, "Account.reset_column_information"
+    refute_match(/\bAccount\.(where|update_all|find_each|all|find_by)/, migration_source)
+    assert_includes migration_source, "UPDATE accounts"
+    assert_includes migration_source, "WHERE time_zone IS NULL OR time_zone = ''"
+  end
+
   test "account time zone uses daylight saving offsets" do
     account = create_account(time_zone: "America/Los_Angeles")
 

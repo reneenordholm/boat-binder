@@ -135,7 +135,9 @@ class Asset < ApplicationRecord
   end
 
   def account_today
-    Time.use_zone(account.time_zone) { Time.zone.today }
+    zone = Time.find_zone(account.time_zone) || Time.zone
+
+    Time.use_zone(zone) { Time.zone.today }
   end
 
   def primary_photo_is_safe_upload
