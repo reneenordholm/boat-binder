@@ -64,9 +64,8 @@ class AccountCreator
 
   def add_failure_error(error)
     record = error.respond_to?(:record) ? error.record : nil
-    if record == contact && contact&.errors&.any?
-      contact.errors.full_messages.each { |message| account.errors.add(:base, message) }
-    elsif record&.errors&.any?
+
+    if record&.errors&.any?
       record.errors.full_messages.each { |message| account.errors.add(:base, message) }
     end
 
