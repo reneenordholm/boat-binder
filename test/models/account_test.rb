@@ -79,6 +79,58 @@ class AccountTest < ActiveSupport::TestCase
     assert_equal "block required", error.message
   end
 
+  test "transactional owner recipient uses first active owner by membership order" do
+    account = create_account(name: "Harbor North")
+    captain = create_user(email: "account-captain-recipient@example.test", role: "captain")
+    inactive_owner = create_user(email: "account-inactive-owner@example.test", role: "owner", active: false)
+    first_owner = create_user(email: "account-first-owner@example.test", role: "owner")
+    second_owner = create_user(email: "account-second-owner@example.test", role: "owner")
+
+    create_account_membership(user: captain, account: account)
+    create_account_membership(user: inactive_owner, account: account)
+    first_membership = create_account_membership(user: first_owner, account: account)
+    second_membership = create_account_membership(user: second_owner, account: account)
+
+    assert_operator first_membership.id, :<, second_membership.id
+    assert_equal first_owner, account.transactional_owner_recipient
+    assert_equal "account-first-owner@example.test", account.transactional_recipient_email
+  end
+
+  test "transactional owner recipient skips inactive memberships and blank emails" do
+    account = create_account(name: "Elliott Family")
+    inactive_membership_owner = create_user(email: "inactive-membership-owner@example.test", role: "owner")
+    blank_email_owner = create_user(email: "blank-email-owner@example.test", role: "owner")
+    eligible_owner = create_user(email: "eligible-owner@example.test", role: "owner")
+    blank_email_owner.update_column(:email_address, "")
+
+    create_account_membership(user: inactive_membership_owner, account: account, active: false)
+    create_account_membership(user: blank_email_owner, account: account)
+    create_account_membership(user: eligible_owner, account: account)
+
+    assert_equal eligible_owner, account.transactional_owner_recipient
+    assert_equal "eligible-owner@example.test", account.transactional_recipient_email
+  end
+
+  test "transactional recipient falls back to manual primary contact only when no owner user is eligible" do
+    account = create_account(name: "Marisol Trust")
+    account.contacts.create!(name: "Manual Contact", email: "manual-owner@example.test", role: "Owner")
+    inactive_owner = create_user(email: "inactive-fallback-owner@example.test", role: "owner", active: false)
+    captain = create_user(email: "captain-fallback@example.test", role: "captain")
+
+    create_account_membership(user: inactive_owner, account: account)
+    create_account_membership(user: captain, account: account)
+
+    assert_nil account.transactional_owner_recipient
+    assert_equal "manual-owner@example.test", account.transactional_recipient_email
+  end
+
+  test "transactional recipient is blank when no owner user or manual contact email exists" do
+    account = create_account(name: "No Recipient Owner")
+
+    assert_nil account.transactional_owner_recipient
+    assert_nil account.transactional_recipient_email
+  end
+
   test "owns contacts and assets" do
     account = create_account
     contact = account.contacts.create!(name: "Avery Elliott", role: "Owner")

@@ -32,7 +32,7 @@ class ServiceVisit < ApplicationRecord
   scope :recent, -> { order(visit_date: :desc, created_at: :desc) }
 
   def summary_recipient_email
-    owner_summary_recipient&.email_address.presence || contact_summary_recipient&.email.presence
+    asset.account.transactional_recipient_email
   end
 
   def build_workflow_defaults
@@ -66,19 +66,6 @@ class ServiceVisit < ApplicationRecord
 
     errors.add(:photos, "must be JPEG, PNG, or WEBP images")
     invalid_photos.each(&:purge)
-  end
-
-  def owner_summary_recipient
-    User.joins(:account_memberships)
-      .where(account_memberships: { account_id: asset.account_id, active: true })
-      .where(role: "owner", active: true)
-      .where.not(email_address: [ nil, "" ])
-      .order(AccountMembership.arel_table[:id].asc)
-      .first
-  end
-
-  def contact_summary_recipient
-    asset.account.primary_contact
   end
 
   def build_default_engine_readings

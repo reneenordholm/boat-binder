@@ -26,6 +26,27 @@ class Account < ApplicationRecord
     contacts.find { |contact| contact.role.to_s.downcase.include?("owner") } || contacts.first
   end
 
+  def owner_user_memberships
+    account_memberships
+      .joins(:user)
+      .includes(:user)
+      .where(users: { role: "owner" })
+      .order(:id)
+  end
+
+  def transactional_owner_recipient
+    User.joins(:account_memberships)
+      .where(account_memberships: { account_id: id, active: true })
+      .where(role: "owner", active: true)
+      .where.not(email_address: [ nil, "" ])
+      .order(AccountMembership.arel_table[:id].asc)
+      .first
+  end
+
+  def transactional_recipient_email
+    transactional_owner_recipient&.email_address.presence || primary_contact&.email.presence
+  end
+
   def status_label
     active? ? "Active" : "Inactive"
   end

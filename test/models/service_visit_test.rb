@@ -38,6 +38,21 @@ class ServiceVisitTest < ActiveSupport::TestCase
     assert_equal [ active_battery ], visit.service_visit_battery_checks.map(&:asset_battery)
   end
 
+  test "summary recipient email uses the account transactional recipient source" do
+    account = create_account(name: "Service Summary Owner")
+    account.contacts.create!(name: "Fallback Owner", email: "fallback-summary@example.test", role: "Owner")
+    owner = create_user(email: "linked-summary-owner@example.test", role: "owner")
+    create_account_membership(user: owner, account: account)
+    visit = ServiceVisit.create!(
+      asset: create_vessel(account: account),
+      performed_by_user: create_user(email: "captain-summary-recipient@example.test"),
+      visit_date: Date.current
+    )
+
+    assert_equal account.transactional_recipient_email, visit.summary_recipient_email
+    assert_equal "linked-summary-owner@example.test", visit.summary_recipient_email
+  end
+
   test "one invalid photo adds one validation error and purges the attachment" do
     visit = create_service_visit
     visit.photos.attach(uploaded_photo("sample.pdf", "application/pdf"))

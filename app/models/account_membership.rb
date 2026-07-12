@@ -13,4 +13,8 @@ class AccountMembership < ApplicationRecord
   def status_label
     active? ? "Active" : "Inactive"
   end
+
+  def transactional_email_eligible?
+    active? && user.owner? && user.active? && user.email_address.present?
+  end
 end
