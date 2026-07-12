@@ -80,7 +80,7 @@ class Asset < ApplicationRecord
   end
 
   def overdue_reminders
-    reminders.pending.where("due_date < ?", Date.current).order(:due_date)
+    reminders.pending.where("due_date < ?", account_today).order(:due_date)
   end
 
   def open_follow_up_visits
@@ -132,6 +132,12 @@ class Asset < ApplicationRecord
 
   def default_engines
     { "Port" => 1, "Starboard" => 2 }
+  end
+
+  def account_today
+    zone = Time.find_zone(account.time_zone) || Time.zone
+
+    Time.use_zone(zone) { Time.zone.today }
   end
 
   def primary_photo_is_safe_upload

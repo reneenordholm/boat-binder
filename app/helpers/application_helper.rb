@@ -1,6 +1,26 @@
 module ApplicationHelper
-  def short_date(value)
-    value&.strftime("%b %-d, %Y") || "Not recorded"
+  include AccountTimeZoneContext
+
+  def short_date(value, account: nil)
+    account_local_time(value, account)&.strftime("%b %-d, %Y") || "Not recorded"
+  end
+
+  def long_date(value, account: nil)
+    account_local_time(value, account)&.to_fs(:long) || "Not recorded"
+  end
+
+  def short_month(value, account: nil)
+    account_local_time(value, account)&.strftime("%b") || ""
+  end
+
+  def local_datetime(value, account: nil)
+    account_local_time(value, account)&.strftime("%b %-d, %Y at %-l:%M %p %Z") || "Not recorded"
+  end
+
+  def account_time_zone_options
+    ActiveSupport::TimeZone.all.map do |zone|
+      [ zone.to_s, zone.tzinfo.name ]
+    end
   end
 
   def field_error_messages(record)

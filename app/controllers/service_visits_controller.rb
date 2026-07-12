@@ -15,7 +15,7 @@ class ServiceVisitsController < ApplicationController
 
   def new
     @service_visit = @vessel.service_visits.new(
-      visit_date: Date.current,
+      visit_date: account_today(@vessel.account),
       performed_by_user: Current.user,
       location: default_location
     )

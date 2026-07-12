@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_23_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_12_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -34,6 +34,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_23_090000) do
     t.datetime "created_at", null: false
     t.string "name", null: false
     t.text "notes"
+    t.string "time_zone", default: "America/Los_Angeles", null: false
     t.datetime "updated_at", null: false
     t.index ["account_type"], name: "index_accounts_on_account_type"
     t.index ["active"], name: "index_accounts_on_active"

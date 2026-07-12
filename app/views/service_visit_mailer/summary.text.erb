@@ -5,12 +5,13 @@
 Boat Binder
 
 <%= @vessel.name %> Service Visit
-Visit date: <%= short_date(@service_visit.visit_date) %>
+Visit date: <%= short_date(@service_visit.visit_date, account: @account) %>
 Performed by: <%= user_display_name(@service_visit.performed_by_user) %>
 
 VISIT SUMMARY
 Follow-up status: <%= follow_up_needed ? "Follow-up needed" : "No follow-up needed" %>
 Engine summary: <%= service_visit_email_engine_hour_summary(@service_visit) %>
+Report filed: <%= local_datetime(@service_visit.created_at, account: @account) %>
 Inspection: <% if total_checks.positive? %><%= service_visit_checked_count(@service_visit) %> of <%= total_checks %> complete<% else %>Not recorded<% end %>
 Battery checks: <%= service_visit_battery_check_count(@service_visit) %> completed
 Photos: <%= pluralize(service_visit_photo_count(@service_visit), "photo") %>

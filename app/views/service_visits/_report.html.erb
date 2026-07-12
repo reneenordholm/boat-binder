@@ -10,7 +10,7 @@
         <p class="text-sm font-black uppercase tracking-normal text-[#7DAAB3]">Client-ready service report</p>
         <h1 class="mt-2 text-3xl font-black tracking-normal"><%= vessel.name %> Visit Report</h1>
         <p class="mt-2 text-sm leading-6 text-slate-200">
-          <%= short_date(service_visit.visit_date) %> by <%= user_display_name(service_visit.performed_by_user) %>
+          <%= short_date(service_visit.visit_date, account: vessel.account) %> by <%= user_display_name(service_visit.performed_by_user) %>
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
@@ -20,7 +20,7 @@
   </header>
 
   <div class="space-y-6 p-5 md:p-8">
-    <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
       <div class="rounded-md bg-[#F7F5F2] p-4">
         <p class="text-sm font-semibold text-slate-500">Vessel</p>
         <p class="mt-1 font-black"><%= vessel.name %></p>
@@ -36,6 +36,10 @@
       <div class="rounded-md bg-[#F7F5F2] p-4">
         <p class="text-sm font-semibold text-slate-500">Captain</p>
         <p class="mt-1 font-black"><%= user_display_name(service_visit.performed_by_user) %></p>
+      </div>
+      <div class="rounded-md bg-[#F7F5F2] p-4">
+        <p class="text-sm font-semibold text-slate-500">Report filed</p>
+        <p class="mt-1 font-black"><%= local_datetime(service_visit.created_at, account: vessel.account) %></p>
       </div>
     </section>
 

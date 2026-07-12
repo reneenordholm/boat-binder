@@ -36,6 +36,25 @@ class AssetTest < ActiveSupport::TestCase
     assert_equal :urgent, asset.status_tone
   end
 
+  test "account today uses the account local date" do
+    account = create_account(time_zone: "America/New_York")
+    vessel = create_vessel(account: account)
+
+    travel_to Time.utc(2026, 7, 6, 3, 30) do
+      assert_equal Date.new(2026, 7, 5), vessel.send(:account_today)
+    end
+  end
+
+  test "account today falls back safely when the persisted account time zone is invalid" do
+    account = create_account(time_zone: "America/New_York")
+    account.update_column(:time_zone, "Mars/Base")
+    vessel = create_vessel(account: account)
+
+    travel_to Time.utc(2026, 7, 6, 3, 30) do
+      assert_equal Time.zone.today, vessel.send(:account_today)
+    end
+  end
+
   test "generates readable unique slugs and uses them in routes" do
     account = create_account(name: "Elliott Family")
     first = create_vessel(account: account)

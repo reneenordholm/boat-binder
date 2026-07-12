@@ -1,5 +1,6 @@
 class DashboardController < ApplicationController
   def index
+    @dashboard_account = scoped_accounts.limit(2).to_a.then { |accounts| accounts.one? ? accounts.first : nil }
     @vessels = scoped_vessels.active.includes(:account, :reminders, :service_visits).with_attached_primary_photo.ordered
     @upcoming_reminders = scoped_reminders.includes(asset: :account).upcoming.limit(6)
     @recent_service_visits = scoped_service_visits.includes(:asset, :performed_by_user).recent.limit(5)

@@ -8,8 +8,8 @@ module ActiveSupport
     parallelize(workers: :number_of_processors)
 
     # Add more helper methods to be used by all tests here...
-    def create_account(name: "Hayes Yacht Company", account_type: "client")
-      Account.create!(name: name, account_type: account_type)
+    def create_account(name: "Hayes Yacht Company", account_type: "client", time_zone: Account::DEFAULT_TIME_ZONE)
+      Account.create!(name: name, account_type: account_type, time_zone: time_zone)
     end
 
     def create_user(email: "captain@example.test", role: "captain", name: nil, active: true)
