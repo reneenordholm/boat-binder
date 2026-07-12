@@ -49,6 +49,36 @@ class AccountTest < ActiveSupport::TestCase
     assert_equal "-07:00", summer_time.formatted_offset
   end
 
+  test "with account time zone scopes the block to the account zone" do
+    account = create_account(time_zone: "America/New_York")
+
+    Time.use_zone("UTC") do
+      zone_name = with_account_time_zone(account) { Time.zone.name }
+
+      assert_equal Time.find_zone("America/New_York").name, zone_name
+    end
+  end
+
+  test "with account time zone restores the previous zone after the block" do
+    account = create_account(time_zone: "America/New_York")
+
+    Time.use_zone("UTC") do
+      with_account_time_zone(account) { Time.zone.today }
+
+      assert_equal Time.find_zone("UTC").name, Time.zone.name
+    end
+  end
+
+  test "with account time zone requires a block" do
+    account = create_account(time_zone: "America/New_York")
+
+    error = assert_raises(ArgumentError) do
+      with_account_time_zone(account)
+    end
+
+    assert_equal "block required", error.message
+  end
+
   test "owns contacts and assets" do
     account = create_account
     contact = account.contacts.create!(name: "Avery Elliott", role: "Owner")

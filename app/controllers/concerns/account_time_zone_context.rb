@@ -11,8 +11,10 @@ module AccountTimeZoneContext
     Time.find_zone(account&.time_zone.presence) || Time.zone
   end
 
-  def with_account_time_zone(account, &block)
-    Time.use_zone(account_time_zone(account), &block)
+  def with_account_time_zone(account)
+    raise ArgumentError, "block required" unless block_given?
+
+    Time.use_zone(account_time_zone(account)) { yield }
   end
 
   def account_today(account)
