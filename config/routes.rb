@@ -3,6 +3,10 @@ Rails.application.routes.draw do
   resources :passwords, param: :token
   resources :invitations, only: %i[edit update], param: :token
 
+  get "/404", to: "errors#not_found", as: :not_found
+  get "/422", to: "errors#unprocessable_entity"
+  get "/500", to: "errors#internal_server_error"
+
   root "dashboard#index"
 
   get "accounts", to: "accounts#index", as: :accounts
