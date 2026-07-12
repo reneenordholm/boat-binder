@@ -22,6 +22,7 @@ module BoatBinder
     # in config/environments, which are processed later.
     #
     config.time_zone = "Pacific Time (US & Canada)"
+    config.exceptions_app = ->(env) { ApplicationExceptions.call(env) }
     # config.eager_load_paths << Rails.root.join("extras")
   end
 end
