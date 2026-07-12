@@ -56,7 +56,7 @@ class AccountsController < ApplicationController
   end
 
   def account_params
-    params.require(:account).permit(:name, :notes, :active)
+    params.require(:account).permit(:name, :notes, :active, :time_zone)
   end
 
   def contact_params

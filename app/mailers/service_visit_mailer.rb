@@ -4,6 +4,7 @@ class ServiceVisitMailer < ApplicationMailer
   def summary(service_visit, recipient_email)
     @service_visit = service_visit
     @vessel = service_visit.asset
+    @account = @vessel.account
     @report_url = report_vessel_service_visit_url(@vessel, @service_visit)
 
     mail(

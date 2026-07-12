@@ -1,5 +1,7 @@
 class Account < ApplicationRecord
   ACCOUNT_TYPES = %w[internal client].freeze
+  DEFAULT_TIME_ZONE = "America/Los_Angeles"
+  VALID_TIME_ZONES = ActiveSupport::TimeZone.all.map { |zone| zone.tzinfo.name }.uniq.freeze
 
   has_many :account_memberships, dependent: :destroy
   has_many :users, through: :account_memberships
@@ -9,8 +11,11 @@ class Account < ApplicationRecord
   has_many :documents, dependent: :destroy
   has_many :binder_notes, dependent: :destroy
 
+  before_validation :set_default_time_zone
+
   validates :name, presence: true
   validates :account_type, inclusion: { in: ACCOUNT_TYPES }
+  validates :time_zone, inclusion: { in: VALID_TIME_ZONES }
 
   scope :active, -> { where(active: true) }
   scope :inactive, -> { where(active: false) }
@@ -27,5 +32,11 @@ class Account < ApplicationRecord
 
   def status_tone
     active? ? :success : :neutral
+  end
+
+  private
+
+  def set_default_time_zone
+    self.time_zone = DEFAULT_TIME_ZONE if time_zone.blank?
   end
 end

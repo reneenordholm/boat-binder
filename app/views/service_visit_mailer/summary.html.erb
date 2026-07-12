@@ -9,7 +9,7 @@
       <p style="color: #7DAAB3; font-size: 12px; font-weight: 700; letter-spacing: 0; margin: 0 0 10px; text-transform: uppercase;">Boat Binder</p>
       <h1 style="font-size: 28px; line-height: 1.2; margin: 0;"><%= @vessel.name %> Service Visit</h1>
       <p style="color: #D7E4E7; font-size: 15px; line-height: 1.6; margin: 12px 0 0;">
-        <strong><%= short_date(@service_visit.visit_date) %></strong><br>
+        <strong><%= short_date(@service_visit.visit_date, account: @account) %></strong><br>
         Performed by <%= user_display_name(@service_visit.performed_by_user) %>
       </p>
     </div>
@@ -24,6 +24,10 @@
         <tr>
           <td style="border-top: 1px solid #E7DED2; padding: 12px 0; vertical-align: top;"><strong>Engine summary</strong></td>
           <td style="border-top: 1px solid #E7DED2; padding: 12px 0;"><%= service_visit_email_engine_hour_summary(@service_visit) %></td>
+        </tr>
+        <tr>
+          <td style="border-top: 1px solid #E7DED2; padding: 12px 0; vertical-align: top;"><strong>Report filed</strong></td>
+          <td style="border-top: 1px solid #E7DED2; padding: 12px 0;"><%= local_datetime(@service_visit.created_at, account: @account) %></td>
         </tr>
         <tr>
           <td style="border-top: 1px solid #E7DED2; padding: 12px 0; vertical-align: top;"><strong>Inspection</strong></td>
