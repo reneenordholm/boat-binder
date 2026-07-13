@@ -20,7 +20,7 @@ class CreateSubscriptions < ActiveRecord::Migration[8.1]
     end
 
     add_index :subscriptions, :account_id, unique: true
-    add_index :subscriptions, [ :provider, :external_customer_id ]
+    add_index :subscriptions, [ :provider, :external_customer_id ], where: "external_customer_id IS NOT NULL"
     add_index :subscriptions, [ :provider, :external_subscription_id ], unique: true, where: "external_subscription_id IS NOT NULL"
     add_check_constraint :subscriptions,
       "plan IN ('legacy', 'starter', 'professional')",
