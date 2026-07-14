@@ -45,6 +45,9 @@ gem "aws-sdk-s3", require: false
 # Keep mail's IMAP dependency on a patched release.
 gem "net-imap", ">= 0.6.4.1"
 
+# Official Stripe Ruby SDK for verified webhook receipt and future billing integration.
+gem "stripe", "~> 19.3"
+
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"

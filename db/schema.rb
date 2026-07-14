@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_12_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_14_190000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -121,6 +121,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_12_120000) do
     t.check_constraint "asset_type::text = ANY (ARRAY['vessel'::character varying, 'home'::character varying, 'pet'::character varying, 'audit'::character varying, 'other'::character varying]::text[])", name: "chk_assets_asset_type"
     t.check_constraint "length IS NULL OR length > 0::numeric", name: "chk_assets_length_positive"
     t.check_constraint "year IS NULL OR year > 1900 AND year <= 2100", name: "chk_assets_year_reasonable"
+  end
+
+  create_table "billing_webhook_events", force: :cascade do |t|
+    t.string "api_version"
+    t.datetime "created_at", null: false
+    t.string "error_code"
+    t.string "event_type", null: false
+    t.string "external_event_id", null: false
+    t.datetime "failed_at"
+    t.boolean "livemode", default: false, null: false
+    t.datetime "processed_at"
+    t.string "provider", null: false
+    t.string "status", default: "received", null: false
+    t.datetime "updated_at", null: false
+    t.index ["provider", "event_type"], name: "index_billing_webhook_events_on_provider_and_event_type"
+    t.index ["provider", "external_event_id"], name: "index_billing_webhook_events_on_provider_and_external_event_id", unique: true
+    t.index ["provider", "status"], name: "index_billing_webhook_events_on_provider_and_status"
+    t.check_constraint "provider::text = ANY (ARRAY['local'::character varying, 'stripe'::character varying]::text[])", name: "chk_billing_webhook_events_provider"
+    t.check_constraint "status::text = ANY (ARRAY['received'::character varying, 'processed'::character varying, 'ignored'::character varying, 'failed'::character varying]::text[])", name: "chk_billing_webhook_events_status"
   end
 
   create_table "binder_notes", force: :cascade do |t|
