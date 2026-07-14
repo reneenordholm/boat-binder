@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_12_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_12_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -242,6 +242,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_12_090000) do
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
+  create_table "subscriptions", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.boolean "cancel_at_period_end", default: false, null: false
+    t.datetime "canceled_at"
+    t.datetime "created_at", null: false
+    t.datetime "current_period_ends_at"
+    t.string "external_customer_id"
+    t.string "external_subscription_id"
+    t.datetime "last_synced_at"
+    t.string "plan", default: "legacy", null: false
+    t.string "provider", default: "local", null: false
+    t.string "status", default: "active", null: false
+    t.datetime "trial_ends_at"
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_subscriptions_on_account_id", unique: true
+    t.index ["provider", "external_customer_id"], name: "index_subscriptions_on_provider_and_external_customer_id", where: "(external_customer_id IS NOT NULL)"
+    t.index ["provider", "external_subscription_id"], name: "index_subscriptions_on_provider_and_external_subscription_id", unique: true, where: "(external_subscription_id IS NOT NULL)"
+    t.check_constraint "plan::text = ANY (ARRAY['legacy'::character varying, 'starter'::character varying, 'professional'::character varying]::text[])", name: "chk_subscriptions_plan"
+    t.check_constraint "provider::text = ANY (ARRAY['local'::character varying, 'stripe'::character varying]::text[])", name: "chk_subscriptions_provider"
+    t.check_constraint "status::text = ANY (ARRAY['legacy'::character varying, 'trialing'::character varying, 'active'::character varying, 'past_due'::character varying, 'canceled'::character varying, 'expired'::character varying, 'suspended'::character varying]::text[])", name: "chk_subscriptions_status"
+  end
+
   create_table "users", force: :cascade do |t|
     t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
@@ -277,4 +299,5 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_12_090000) do
   add_foreign_key "service_visits", "assets"
   add_foreign_key "service_visits", "users", column: "performed_by_user_id"
   add_foreign_key "sessions", "users"
+  add_foreign_key "subscriptions", "accounts"
 end

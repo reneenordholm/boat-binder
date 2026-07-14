@@ -87,6 +87,17 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, @owner_b_vessel.name
   end
 
+  test "subscription status does not change existing owner access in phase one" do
+    setup_access_records
+    @owner_a_account.subscription.update!(status: "suspended")
+    sign_in_as @owner_a_user
+
+    get vessel_path(@owner_a_vessel)
+
+    assert_response :success
+    assert_includes response.body, @owner_a_vessel.name
+  end
+
   test "owner cannot access another owner's direct object URLs" do
     setup_access_records
     sign_in_as @owner_a_user

@@ -5,25 +5,29 @@ class OwnerManagementTest < ActionDispatch::IntegrationTest
     sign_in_as create_user(email: "admin-owner-timezone@example.test", role: "admin")
 
     assert_difference -> { Account.count }, 1 do
-      post owners_path, params: {
-        account: {
-          name: "Solano Family",
-          notes: "Prefers text updates.",
-          active: "1",
-          time_zone: "America/New_York"
-        },
-        contact: {
-          name: "Maya Solano",
-          email: "maya@example.test",
-          phone: "555-0199"
+      assert_difference -> { Subscription.count }, 1 do
+        post owners_path, params: {
+          account: {
+            name: "Solano Family",
+            notes: "Prefers text updates.",
+            active: "1",
+            time_zone: "America/New_York"
+          },
+          contact: {
+            name: "Maya Solano",
+            email: "maya@example.test",
+            phone: "555-0199"
+          }
         }
-      }
+      end
     end
 
     owner = Account.find_by!(name: "Solano Family")
     assert_redirected_to owner_path(owner)
     assert_equal "Maya Solano", owner.primary_contact.name
     assert_equal "America/New_York", owner.time_zone
+    assert_equal "legacy", owner.subscription.plan
+    assert_equal "active", owner.subscription.status
 
     patch owner_path(owner), params: {
       account: {
@@ -71,6 +75,50 @@ class OwnerManagementTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_entity
     assert_select "select[name='account[time_zone]'] option[value='America/New_York'][selected]"
+  end
+
+  test "owner creation failure after rollback rerenders create form action with submitted values" do
+    original_default_attributes = Subscription.method(:default_local_attributes)
+    Subscription.define_singleton_method(:default_local_attributes) do
+      {
+        plan: "legacy",
+        status: "unsupported",
+        provider: "local"
+      }
+    end
+    sign_in_as create_user(email: "admin-rollback-form@example.test", role: "admin")
+
+    assert_no_difference -> { Account.count } do
+      assert_no_difference -> { Subscription.count } do
+        assert_no_difference -> { Contact.count } do
+          post owners_path, params: {
+            account: {
+              name: "Rollback Form Owner",
+              notes: "These notes should stay.",
+              active: "1",
+              time_zone: "America/New_York"
+            },
+            contact: {
+              name: "Rollback Contact",
+              email: "rollback-contact@example.test",
+              phone: "555-0190"
+            }
+          }
+        end
+      end
+    end
+
+    assert_response :unprocessable_entity
+    assert_select "form[action='#{owners_path}']", count: 1
+    assert_select "form[action*='/owners/']", count: 0
+    assert_select "input[name='account[name]'][value='Rollback Form Owner']"
+    assert_select "textarea[name='account[notes]']", text: "These notes should stay."
+    assert_select "input[name='contact[name]'][value='Rollback Contact']"
+    assert_select "input[name='contact[email]'][value='rollback-contact@example.test']"
+    assert_includes response.body, "Status is not included in the list"
+    assert_includes response.body, "Account could not be created with subscription state."
+  ensure
+    Subscription.define_singleton_method(:default_local_attributes, original_default_attributes)
   end
 
   test "inactive owners are hidden by default but can be included" do
@@ -134,6 +182,38 @@ class OwnerManagementTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_includes response.body, "No linked owner users yet."
     assert_includes response.body, "No additional contact information saved yet."
+    assert_includes response.body, "Subscription"
+    assert_includes response.body, "Legacy"
+    assert_includes response.body, "Active"
+    assert_includes response.body, "Local"
+    assert_includes response.body, "Access eligible"
+    assert_includes response.body, "Not recorded"
+  end
+
+  test "owner page renders partially populated external subscription state in account time zone" do
+    admin = create_user(email: "admin-subscription-summary@example.test", role: "admin")
+    account = create_account(name: "Subscription Summary Owner", time_zone: "America/New_York")
+    account.subscription.update!(
+      plan: "professional",
+      status: "trialing",
+      provider: "stripe",
+      trial_ends_at: Time.utc(2026, 7, 15, 20, 0),
+      current_period_ends_at: Time.utc(2026, 8, 15, 20, 0),
+      cancel_at_period_end: true,
+      last_synced_at: Time.utc(2026, 7, 12, 18, 30)
+    )
+    sign_in_as admin
+
+    get owner_path(account)
+
+    assert_response :success
+    assert_includes response.body, "Professional"
+    assert_includes response.body, "Trialing"
+    assert_includes response.body, "Stripe"
+    assert_includes response.body, "Cancels at period end"
+    assert_includes response.body, "Jul 15, 2026 at 4:00 PM EDT"
+    assert_includes response.body, "Aug 15, 2026 at 4:00 PM EDT"
+    assert_includes response.body, "Jul 12, 2026 at 2:30 PM EDT"
   end
 
   test "owner form clarifies manual contact information does not grant access" do
