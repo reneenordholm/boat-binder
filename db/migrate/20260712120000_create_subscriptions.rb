@@ -28,6 +28,9 @@ class CreateSubscriptions < ActiveRecord::Migration[8.1]
     add_check_constraint :subscriptions,
       "status IN ('legacy', 'trialing', 'active', 'past_due', 'canceled', 'expired', 'suspended')",
       name: "chk_subscriptions_status"
+    add_check_constraint :subscriptions,
+      "provider IN ('local', 'stripe')",
+      name: "chk_subscriptions_provider"
 
     execute <<~SQL.squish
       INSERT INTO subscriptions (account_id, plan, status, provider, created_at, updated_at)

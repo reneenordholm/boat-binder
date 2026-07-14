@@ -41,6 +41,14 @@ class Subscription < ApplicationRecord
     status == "canceled"
   end
 
+  def expired?
+    status == "expired"
+  end
+
+  def suspended?
+    status == "suspended"
+  end
+
   def access_allowed?
     ACCESS_ALLOWED_STATUSES.include?(status)
   end

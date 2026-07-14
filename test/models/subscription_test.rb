@@ -37,6 +37,30 @@ class SubscriptionTest < ActiveSupport::TestCase
     assert subscription.managed_externally?
   end
 
+  test "lifecycle predicates are status specific" do
+    subscription = Subscription.new(plan: "legacy", status: "active", provider: "local")
+
+    {
+      active: "active",
+      trialing: "trialing",
+      past_due: "past_due",
+      canceled: "canceled",
+      expired: "expired",
+      suspended: "suspended"
+    }.each do |predicate, status|
+      Subscription::STATUSES.each do |candidate_status|
+        subscription.status = candidate_status
+
+        assert_equal candidate_status == status, subscription.public_send("#{predicate}?")
+      end
+    end
+
+    %w[expired suspended].each do |status|
+      subscription.status = status
+      assert_not subscription.access_allowed?, "#{status} should not allow subscription access"
+    end
+  end
+
   test "provider validation accepts only supported providers" do
     %w[local stripe].each do |provider|
       subscription = Subscription.new(
@@ -47,6 +71,7 @@ class SubscriptionTest < ActiveSupport::TestCase
       )
 
       assert subscription.valid?, "#{provider} should be a valid provider"
+      assert subscription.save, "#{provider} should satisfy database provider constraints"
     end
 
     [ nil, "", "LOCAL", "Stripe", "strpie", "paypal" ].each do |provider|
@@ -74,6 +99,26 @@ class SubscriptionTest < ActiveSupport::TestCase
     assert_includes migration_source, "SELECT accounts.id"
     assert_includes migration_source, "'legacy'"
     assert_includes migration_source, "'active'"
+  end
+
+  test "database rejects unsupported providers when validations are bypassed" do
+    account = bare_account(name: "Invalid Provider Database Check")
+    timestamp = Time.current
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      Subscription.transaction(requires_new: true) do
+        Subscription.insert_all!([
+          {
+            account_id: account.id,
+            plan: "legacy",
+            status: "active",
+            provider: "paypal",
+            created_at: timestamp,
+            updated_at: timestamp
+          }
+        ])
+      end
+    end
   end
 
   test "database rejects duplicate subscriptions for an account" do
@@ -151,6 +196,15 @@ class SubscriptionTest < ActiveSupport::TestCase
     assert subscription_lookup_index
     assert subscription_lookup_index.unique
     assert_match(/external_subscription_id IS NOT NULL/, subscription_lookup_index.where.to_s)
+  end
+
+  test "provider check constraint allows only supported provider values" do
+    constraints = ActiveRecord::Base.connection.check_constraints(:subscriptions)
+    provider_constraint = constraints.find { |constraint| constraint.name == "chk_subscriptions_provider" }
+
+    assert provider_constraint
+    assert_match(/provider.*local/, provider_constraint.expression)
+    assert_match(/provider.*stripe/, provider_constraint.expression)
   end
 
   private
