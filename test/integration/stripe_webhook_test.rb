@@ -21,6 +21,11 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
   end
 
   test "webhook route accepts post without authentication and rejects get" do
+    assert_recognizes(
+      { controller: "webhooks/stripe", action: "create" },
+      { path: "/webhooks/stripe", method: :post }
+    )
+
     assert_difference -> { BillingWebhookEvent.count }, 1 do
       post_signed_event(event_id: "evt_route_post")
     end
@@ -39,6 +44,17 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, "/webhooks/stripe"
   end
 
+  test "normal browser-facing posts still require csrf protection" do
+    with_forgery_protection do
+      post session_path, params: {
+        email_address: "captain@example.test",
+        password: "password"
+      }
+    end
+
+    assert_response :unprocessable_entity
+  end
+
   test "normal authenticated requests do not invoke Stripe webhook verification" do
     user = create_user(email: "stripe-normal-request@example.test", role: "admin")
     sign_in_as(user)
@@ -52,21 +68,27 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
 
   test "only Stripe webhook controller skips csrf verification" do
     assert csrf_skipped_for_action?(Webhooks::StripeController, :create)
+    assert_equal [ "create" ], csrf_skip_actions(Webhooks::StripeController)
     assert_not csrf_skipped_for_action?(SessionsController, :create)
     assert_not csrf_skipped_for_action?(VesselsController, :create)
   end
 
   test "valid signed subscription event is accepted and recorded as ignored" do
+    dispatched_event_ids = []
+
     assert_difference -> { BillingWebhookEvent.count }, 1 do
-      post_signed_event(
-        event_id: "evt_subscription_updated",
-        event_type: "customer.subscription.updated",
-        livemode: true,
-        api_version: "2026-07-01"
-      )
+      with_processor_call_spy(dispatched_event_ids) do
+        post_signed_event(
+          event_id: "evt_subscription_updated",
+          event_type: "customer.subscription.updated",
+          livemode: true,
+          api_version: "2026-07-01"
+        )
+      end
     end
 
     assert_response :success
+    assert_equal [ "evt_subscription_updated" ], dispatched_event_ids
     receipt = BillingWebhookEvent.find_by!(provider: "stripe", external_event_id: "evt_subscription_updated")
     assert_equal "customer.subscription.updated", receipt.event_type
     assert receipt.livemode?
@@ -87,24 +109,35 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
   test "duplicate valid delivery returns success without a second receipt" do
     payload = stripe_event_payload(event_id: "evt_duplicate", event_type: "invoice.paid")
     headers = stripe_signature_headers(payload)
+    process_count = 0
 
     assert_difference -> { BillingWebhookEvent.count }, 1 do
-      post webhooks_stripe_path, params: payload, headers: headers
+      with_process_event_count(process_count) do |counter|
+        post webhooks_stripe_path, params: payload, headers: headers
+        process_count = counter.call
+      end
     end
     assert_response :success
+    assert_equal 1, process_count
 
     assert_no_difference -> { BillingWebhookEvent.count } do
-      post webhooks_stripe_path, params: payload, headers: headers
+      with_process_event_count(process_count) do |counter|
+        post webhooks_stripe_path, params: payload, headers: headers
+        process_count = counter.call
+      end
     end
     assert_response :success
+    assert_equal 1, process_count
   end
 
   test "missing webhook secret fails safely without exposing secrets" do
     Rails.configuration.x.stripe.webhook_secret = nil
 
-    post webhooks_stripe_path,
-      params: stripe_event_payload(event_id: "evt_missing_secret"),
-      headers: stripe_signature_headers(stripe_event_payload(event_id: "evt_missing_secret"))
+    with_processor_call_failure do
+      post webhooks_stripe_path,
+        params: stripe_event_payload(event_id: "evt_missing_secret"),
+        headers: stripe_signature_headers(stripe_event_payload(event_id: "evt_missing_secret"))
+    end
 
     assert_response :bad_request
     assert_equal "", response.body
@@ -115,14 +148,18 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
     payload = stripe_event_payload(event_id: "evt_bad_signature")
 
     assert_no_difference -> { BillingWebhookEvent.count } do
-      post webhooks_stripe_path, params: payload, headers: { "CONTENT_TYPE" => "application/json" }
+      with_processor_call_failure do
+        post webhooks_stripe_path, params: payload, headers: { "CONTENT_TYPE" => "application/json" }
+      end
     end
     assert_response :bad_request
 
     assert_no_difference -> { BillingWebhookEvent.count } do
-      post webhooks_stripe_path,
-        params: payload,
-        headers: stripe_signature_headers(payload, secret: "wrong_secret")
+      with_processor_call_failure do
+        post webhooks_stripe_path,
+          params: payload,
+          headers: stripe_signature_headers(payload, secret: "wrong_secret")
+      end
     end
     assert_response :bad_request
   end
@@ -131,7 +168,9 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
     payload = "{not-json"
 
     assert_no_difference -> { BillingWebhookEvent.count } do
-      post webhooks_stripe_path, params: payload, headers: stripe_signature_headers(payload)
+      with_processor_call_failure do
+        post webhooks_stripe_path, params: payload, headers: stripe_signature_headers(payload)
+      end
     end
     assert_response :bad_request
   end
@@ -141,9 +180,11 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
     modified_payload = stripe_event_payload(event_id: "evt_modified")
 
     assert_no_difference -> { BillingWebhookEvent.count } do
-      post webhooks_stripe_path,
-        params: modified_payload,
-        headers: stripe_signature_headers(signed_payload)
+      with_processor_call_failure do
+        post webhooks_stripe_path,
+          params: modified_payload,
+          headers: stripe_signature_headers(signed_payload)
+      end
     end
     assert_response :bad_request
   end
@@ -209,14 +250,18 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
   end
 
   def csrf_skipped_for_action?(controller, action)
+    csrf_skip_actions(controller).include?(action.to_s)
+  end
+
+  def csrf_skip_actions(controller)
     callback = controller._process_action_callbacks.find do |candidate|
       candidate.kind == :before && candidate.filter == :verify_authenticity_token
     end
-    return false unless callback
+    return [] unless callback
 
-    callback.instance_variable_get(:@unless).any? do |condition|
-      condition.instance_variable_get(:@actions)&.include?(action.to_s)
-    end
+    callback.instance_variable_get(:@unless).filter_map do |condition|
+      condition.instance_variable_get(:@actions)&.to_a
+    end.flatten.sort
   end
 
   def with_processor_failure
@@ -230,6 +275,56 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
   ensure
     Billing::StripeWebhookProcessor.define_method(:process_event!, original_method)
     Billing::StripeWebhookProcessor.send(:private, :process_event!)
+  end
+
+  def with_processor_call_failure
+    original_method = Billing::StripeWebhookProcessor.method(:call)
+    Billing::StripeWebhookProcessor.define_singleton_method(:call) do |_event|
+      raise "processor should not run"
+    end
+
+    yield
+  ensure
+    Billing::StripeWebhookProcessor.define_singleton_method(:call, original_method)
+  end
+
+  def with_processor_call_spy(dispatched_event_ids)
+    original_method = Billing::StripeWebhookProcessor.method(:call)
+    Billing::StripeWebhookProcessor.define_singleton_method(:call) do |event|
+      dispatched_event_ids << event.id
+      original_method.call(event)
+    end
+
+    yield
+  ensure
+    Billing::StripeWebhookProcessor.define_singleton_method(:call, original_method)
+  end
+
+  def with_process_event_count(initial_count)
+    count = initial_count
+    original_method = Billing::StripeWebhookProcessor.instance_method(:process_event!)
+    Billing::StripeWebhookProcessor.define_method(:process_event!) do |billing_webhook_event|
+      count += 1
+      original_method.bind_call(self, billing_webhook_event)
+    end
+    Billing::StripeWebhookProcessor.send(:private, :process_event!)
+
+    yield -> { count }
+  ensure
+    Billing::StripeWebhookProcessor.define_method(:process_event!, original_method)
+    Billing::StripeWebhookProcessor.send(:private, :process_event!)
+  end
+
+  def with_forgery_protection
+    previous_application_value = ApplicationController.allow_forgery_protection
+    previous_base_value = ActionController::Base.allow_forgery_protection
+    ApplicationController.allow_forgery_protection = true
+    ActionController::Base.allow_forgery_protection = true
+
+    yield
+  ensure
+    ApplicationController.allow_forgery_protection = previous_application_value
+    ActionController::Base.allow_forgery_protection = previous_base_value
   end
 
   def with_stripe_webhook_verification_failure
