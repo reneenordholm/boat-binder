@@ -21,13 +21,9 @@ module Billing
     end
 
     def call
-      billing_webhook_event = persist_event_receipt
-      return success_result(billing_webhook_event, duplicate: true) unless @receipt_created
-
-      process_event!(billing_webhook_event)
-      success_result(billing_webhook_event)
+      process_or_acknowledge(find_or_create_receipt)
     rescue ActiveRecord::RecordNotUnique
-      success_result(find_existing_receipt, duplicate: true)
+      process_or_acknowledge(find_existing_receipt)
     rescue StandardError => error
       mark_failed(error)
       Rails.logger.error(
@@ -41,14 +37,10 @@ module Billing
 
     attr_reader :event
 
-    def persist_event_receipt
+    def find_or_create_receipt
       existing_receipt = BillingWebhookEvent.find_by(provider: STRIPE_PROVIDER, external_event_id: event_id)
-      if existing_receipt
-        @receipt_created = false
-        return @billing_webhook_event = existing_receipt
-      end
+      return @billing_webhook_event = existing_receipt if existing_receipt
 
-      @receipt_created = true
       @billing_webhook_event = BillingWebhookEvent.create!(
         provider: STRIPE_PROVIDER,
         external_event_id: event_id,
@@ -59,9 +51,19 @@ module Billing
       )
     end
 
+    def process_or_acknowledge(billing_webhook_event)
+      billing_webhook_event.with_lock do
+        @billing_webhook_event = billing_webhook_event
+        return success_result(billing_webhook_event, duplicate: true) if billing_webhook_event.completed?
+
+        process_event!(billing_webhook_event)
+        success_result(billing_webhook_event)
+      end
+    end
+
     def process_event!(billing_webhook_event)
       ignore_reason = IGNORED_EVENT_TYPES.include?(event_type) ? "deferred" : "unknown"
-      billing_webhook_event.update!(status: "ignored", processed_at: Time.current)
+      billing_webhook_event.mark_ignored!
 
       Rails.logger.info(
         "Stripe webhook ignored reason=#{ignore_reason} event_id=#{event_id} " \
@@ -72,11 +74,7 @@ module Billing
     def mark_failed(error)
       return unless @billing_webhook_event&.persisted?
 
-      @billing_webhook_event.update!(
-        status: "failed",
-        failed_at: Time.current,
-        error_code: error.class.name.demodulize
-      )
+      @billing_webhook_event.mark_failed!(error_code: error.class.name.demodulize)
     rescue StandardError => update_error
       Rails.logger.error(
         "Stripe webhook failure status update failed provider=stripe event_id=#{event_id.inspect} " \

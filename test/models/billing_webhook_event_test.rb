@@ -118,4 +118,35 @@ class BillingWebhookEventTest < ActiveSupport::TestCase
     assert_not_includes BillingWebhookEvent.column_names, "secret"
     assert_not_includes BillingWebhookEvent.column_names, "api_key"
   end
+
+  test "receipt lifecycle transitions keep state consistent" do
+    event = BillingWebhookEvent.create!(
+      provider: "stripe",
+      external_event_id: "evt_lifecycle",
+      event_type: "invoice.payment_failed",
+      livemode: false,
+      status: "received"
+    )
+
+    event.mark_failed!(error_code: "RuntimeError")
+    assert event.failed?
+    assert_nil event.processed_at
+    assert event.failed_at.present?
+    assert_equal "RuntimeError", event.error_code
+
+    event.mark_ignored!
+    assert event.ignored?
+    assert event.completed?
+    assert event.processed_at.present?
+    assert_nil event.failed_at
+    assert_nil event.error_code
+
+    event.mark_failed!(error_code: "TimeoutError")
+    event.mark_processed!
+    assert event.processed?
+    assert event.completed?
+    assert event.processed_at.present?
+    assert_nil event.failed_at
+    assert_nil event.error_code
+  end
 end

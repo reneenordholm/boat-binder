@@ -130,6 +130,155 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
     assert_equal 1, process_count
   end
 
+  test "failed event receipt is retried and clears failure metadata after success" do
+    payload = stripe_event_payload(event_id: "evt_retry_after_failure", event_type: "invoice.payment_failed")
+    headers = stripe_signature_headers(payload)
+
+    assert_difference -> { BillingWebhookEvent.count }, 1 do
+      with_processor_failure do
+        post webhooks_stripe_path, params: payload, headers: headers
+      end
+    end
+    assert_response :internal_server_error
+
+    receipt = BillingWebhookEvent.find_by!(provider: "stripe", external_event_id: "evt_retry_after_failure")
+    assert_equal "failed", receipt.status
+    assert receipt.failed_at.present?
+    assert_equal "RuntimeError", receipt.error_code
+    assert_nil receipt.processed_at
+    assert_not_includes response.body, "synthetic failure"
+
+    process_count = 0
+    assert_no_difference -> { BillingWebhookEvent.count } do
+      with_process_event_count(process_count) do |counter|
+        post webhooks_stripe_path, params: payload, headers: headers
+        process_count = counter.call
+      end
+    end
+
+    assert_response :success
+    assert_equal 1, process_count
+    receipt.reload
+    assert_equal "ignored", receipt.status
+    assert receipt.processed_at.present?
+    assert_nil receipt.failed_at
+    assert_nil receipt.error_code
+  end
+
+  test "failed event receipt remains retryable after repeated failures" do
+    payload = stripe_event_payload(event_id: "evt_repeated_failure", event_type: "invoice.payment_failed")
+    headers = stripe_signature_headers(payload)
+    failure_count = 0
+
+    assert_difference -> { BillingWebhookEvent.count }, 1 do
+      with_processor_failure_count(failure_count) do |counter|
+        post webhooks_stripe_path, params: payload, headers: headers
+        failure_count = counter.call
+      end
+    end
+    assert_response :internal_server_error
+
+    receipt = BillingWebhookEvent.find_by!(provider: "stripe", external_event_id: "evt_repeated_failure")
+    first_failed_at = receipt.failed_at
+    assert_equal "failed", receipt.status
+    assert_equal "RuntimeError", receipt.error_code
+    assert_nil receipt.processed_at
+
+    assert_no_difference -> { BillingWebhookEvent.count } do
+      with_processor_failure_count(failure_count) do |counter|
+        post webhooks_stripe_path, params: payload, headers: headers
+        failure_count = counter.call
+      end
+    end
+
+    assert_response :internal_server_error
+    assert_equal 2, failure_count
+    receipt.reload
+    assert_equal "failed", receipt.status
+    assert_operator receipt.failed_at, :>=, first_failed_at
+    assert_equal "RuntimeError", receipt.error_code
+    assert_nil receipt.processed_at
+  end
+
+  test "completed processed receipt is acknowledged without dispatching again" do
+    processed_at = 1.hour.ago
+    BillingWebhookEvent.create!(
+      provider: "stripe",
+      external_event_id: "evt_processed_duplicate",
+      event_type: "invoice.paid",
+      livemode: false,
+      status: "processed",
+      processed_at: processed_at
+    )
+    payload = stripe_event_payload(event_id: "evt_processed_duplicate", event_type: "invoice.paid")
+
+    assert_no_difference -> { BillingWebhookEvent.count } do
+      with_processor_failure do
+        post webhooks_stripe_path, params: payload, headers: stripe_signature_headers(payload)
+      end
+    end
+
+    assert_response :success
+    receipt = BillingWebhookEvent.find_by!(provider: "stripe", external_event_id: "evt_processed_duplicate")
+    assert_equal "processed", receipt.status
+    assert_equal processed_at.to_i, receipt.processed_at.to_i
+    assert_nil receipt.failed_at
+    assert_nil receipt.error_code
+  end
+
+  test "record not unique recovery acknowledges completed receipts without dispatch" do
+    BillingWebhookEvent.create!(
+      provider: "stripe",
+      external_event_id: "evt_race_completed",
+      event_type: "invoice.paid",
+      livemode: false,
+      status: "ignored",
+      processed_at: 1.hour.ago
+    )
+    payload = stripe_event_payload(event_id: "evt_race_completed", event_type: "invoice.paid")
+
+    assert_no_difference -> { BillingWebhookEvent.count } do
+      with_receipt_create_race do
+        with_processor_failure do
+          post webhooks_stripe_path, params: payload, headers: stripe_signature_headers(payload)
+        end
+      end
+    end
+
+    assert_response :success
+  end
+
+  test "record not unique recovery retries failed receipts" do
+    BillingWebhookEvent.create!(
+      provider: "stripe",
+      external_event_id: "evt_race_failed",
+      event_type: "invoice.payment_failed",
+      livemode: false,
+      status: "failed",
+      failed_at: 1.hour.ago,
+      error_code: "RuntimeError"
+    )
+    payload = stripe_event_payload(event_id: "evt_race_failed", event_type: "invoice.payment_failed")
+    process_count = 0
+
+    assert_no_difference -> { BillingWebhookEvent.count } do
+      with_receipt_create_race do
+        with_process_event_count(process_count) do |counter|
+          post webhooks_stripe_path, params: payload, headers: stripe_signature_headers(payload)
+          process_count = counter.call
+        end
+      end
+    end
+
+    assert_response :success
+    assert_equal 1, process_count
+    receipt = BillingWebhookEvent.find_by!(provider: "stripe", external_event_id: "evt_race_failed")
+    assert_equal "ignored", receipt.status
+    assert receipt.processed_at.present?
+    assert_nil receipt.failed_at
+    assert_nil receipt.error_code
+  end
+
   test "missing webhook secret fails safely without exposing secrets" do
     Rails.configuration.x.stripe.webhook_secret = nil
 
@@ -277,6 +426,21 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
     Billing::StripeWebhookProcessor.send(:private, :process_event!)
   end
 
+  def with_processor_failure_count(initial_count)
+    count = initial_count
+    original_method = Billing::StripeWebhookProcessor.instance_method(:process_event!)
+    Billing::StripeWebhookProcessor.define_method(:process_event!) do |_billing_webhook_event|
+      count += 1
+      raise "synthetic failure"
+    end
+    Billing::StripeWebhookProcessor.send(:private, :process_event!)
+
+    yield -> { count }
+  ensure
+    Billing::StripeWebhookProcessor.define_method(:process_event!, original_method)
+    Billing::StripeWebhookProcessor.send(:private, :process_event!)
+  end
+
   def with_processor_call_failure
     original_method = Billing::StripeWebhookProcessor.method(:call)
     Billing::StripeWebhookProcessor.define_singleton_method(:call) do |_event|
@@ -325,6 +489,31 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
   ensure
     ApplicationController.allow_forgery_protection = previous_application_value
     ActionController::Base.allow_forgery_protection = previous_base_value
+  end
+
+  def with_receipt_create_race
+    original_find_by = BillingWebhookEvent.method(:find_by)
+    original_create = BillingWebhookEvent.method(:create!)
+    find_by_calls = 0
+    create_calls = 0
+
+    BillingWebhookEvent.define_singleton_method(:find_by) do |*args, **kwargs|
+      find_by_calls += 1
+      next nil if find_by_calls == 1
+
+      original_find_by.call(*args, **kwargs)
+    end
+    BillingWebhookEvent.define_singleton_method(:create!) do |*args, **kwargs|
+      create_calls += 1
+      raise ActiveRecord::RecordNotUnique if create_calls == 1
+
+      original_create.call(*args, **kwargs)
+    end
+
+    yield
+  ensure
+    BillingWebhookEvent.define_singleton_method(:find_by, original_find_by)
+    BillingWebhookEvent.define_singleton_method(:create!, original_create)
   end
 
   def with_stripe_webhook_verification_failure

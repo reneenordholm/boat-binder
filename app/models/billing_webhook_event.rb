@@ -11,11 +11,46 @@ class BillingWebhookEvent < ApplicationRecord
 
   scope :stripe, -> { where(provider: STRIPE_PROVIDER) }
 
+  def completed?
+    processed? || ignored?
+  end
+
+  def processed?
+    status == "processed"
+  end
+
   def ignored?
     status == "ignored"
   end
 
   def failed?
     status == "failed"
+  end
+
+  def mark_ignored!
+    update!(
+      status: "ignored",
+      processed_at: Time.current,
+      failed_at: nil,
+      error_code: nil
+    )
+  end
+
+  def mark_processed!
+    update!(
+      status: "processed",
+      processed_at: Time.current,
+      failed_at: nil,
+      error_code: nil
+    )
+  end
+
+  def mark_failed!(error_code:)
+    update!(
+      status: "failed",
+      processed_at: nil,
+      failed_at: Time.current,
+      error_code: error_code
+    )
   end
 end
