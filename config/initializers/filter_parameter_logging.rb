@@ -6,6 +6,6 @@
 Rails.application.config.filter_parameters += [
   :passw, :email, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc,
   :billing_details, :charge, :customer, :customer_address, :customer_email, :customer_name,
-  :customer_phone, :data, :hosted_invoice_url, :invoice_pdf, :lines, :payment_intent,
-  :payment_method, :receipt_url, :source
+  :customer_phone, /\Adata\z/, :hosted_invoice_url, :invoice_pdf, /\Alines\z/, :payment_intent,
+  :payment_method, :receipt_url, /\Asource\z/
 ]

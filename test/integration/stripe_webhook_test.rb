@@ -106,6 +106,32 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
     assert_equal "ignored", receipt.status
   end
 
+  test "webhook parameter filter is precise for generic Stripe keys" do
+    filtered = parameter_filter.filter(
+      "data" => "sensitive data",
+      "lines" => "sensitive line items",
+      "source" => "sensitive source",
+      "metadata" => "ordinary metadata",
+      "resource" => "ordinary resource",
+      "headlines" => "ordinary headlines",
+      "hosted_invoice_url" => "https://invoice.stripe.com/i/private",
+      "invoice_pdf" => "https://pay.stripe.com/invoice/private.pdf",
+      "payment_intent" => "pi_sensitive",
+      "customer_email" => "owner@example.test"
+    )
+
+    assert_equal "[FILTERED]", filtered["data"]
+    assert_equal "[FILTERED]", filtered["lines"]
+    assert_equal "[FILTERED]", filtered["source"]
+    assert_equal "ordinary metadata", filtered["metadata"]
+    assert_equal "ordinary resource", filtered["resource"]
+    assert_equal "ordinary headlines", filtered["headlines"]
+    assert_equal "[FILTERED]", filtered["hosted_invoice_url"]
+    assert_equal "[FILTERED]", filtered["invoice_pdf"]
+    assert_equal "[FILTERED]", filtered["payment_intent"]
+    assert_equal "[FILTERED]", filtered["customer_email"]
+  end
+
   test "webhook parameter logs filter billing payload and do not duplicate stripe wrapper" do
     data_object = {
       id: "in_sensitive",
@@ -448,6 +474,10 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
       "CONTENT_TYPE" => "application/json",
       "Stripe-Signature" => Stripe::Webhook::Signature.generate_header(timestamp, signature)
     }
+  end
+
+  def parameter_filter
+    ActiveSupport::ParameterFilter.new(Rails.application.config.filter_parameters)
   end
 
   def capture_rails_logs
