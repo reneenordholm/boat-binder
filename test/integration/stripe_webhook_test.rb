@@ -106,6 +106,108 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
     assert_equal "ignored", receipt.status
   end
 
+  test "webhook parameter filter is precise for generic Stripe keys" do
+    filtered = parameter_filter.filter(
+      "data" => "sensitive data",
+      "lines" => "sensitive line items",
+      "source" => "sensitive source",
+      "metadata" => "ordinary metadata",
+      "resource" => "ordinary resource",
+      "headlines" => "ordinary headlines",
+      "customer" => "cus_sensitive",
+      "customer_account" => "acct_sensitive",
+      "customer_address" => "private address",
+      "hosted_invoice_url" => "https://invoice.stripe.com/i/private",
+      "invoice_pdf" => "https://pay.stripe.com/invoice/private.pdf",
+      "customer_name" => "Owner Name",
+      "customer_note" => "ordinary customer note",
+      "customer_phone" => "555-1212",
+      "customer_shipping" => "private shipping",
+      "customer_success_manager" => "ordinary CSM",
+      "customer_tax_ids" => [ "txi_sensitive" ],
+      "charge" => "ch_sensitive",
+      "discharge_notes" => "ordinary discharge notes",
+      "payment_intent" => "pi_sensitive",
+      "customer_email" => "owner@example.test",
+      "prospective_customer" => "ordinary prospect"
+    )
+
+    assert_equal "[FILTERED]", filtered["data"]
+    assert_equal "[FILTERED]", filtered["lines"]
+    assert_equal "[FILTERED]", filtered["source"]
+    assert_equal "ordinary metadata", filtered["metadata"]
+    assert_equal "ordinary resource", filtered["resource"]
+    assert_equal "ordinary headlines", filtered["headlines"]
+    assert_equal "[FILTERED]", filtered["customer"]
+    assert_equal "[FILTERED]", filtered["customer_account"]
+    assert_equal "[FILTERED]", filtered["customer_address"]
+    assert_equal "[FILTERED]", filtered["hosted_invoice_url"]
+    assert_equal "[FILTERED]", filtered["invoice_pdf"]
+    assert_equal "[FILTERED]", filtered["customer_name"]
+    assert_equal "ordinary customer note", filtered["customer_note"]
+    assert_equal "[FILTERED]", filtered["customer_phone"]
+    assert_equal "[FILTERED]", filtered["customer_shipping"]
+    assert_equal "ordinary CSM", filtered["customer_success_manager"]
+    assert_equal "[FILTERED]", filtered["customer_tax_ids"]
+    assert_equal "[FILTERED]", filtered["charge"]
+    assert_equal "ordinary discharge notes", filtered["discharge_notes"]
+    assert_equal "[FILTERED]", filtered["payment_intent"]
+    assert_equal "[FILTERED]", filtered["customer_email"]
+    assert_equal "ordinary prospect", filtered["prospective_customer"]
+  end
+
+  test "webhook parameter logs filter billing payload and do not duplicate stripe wrapper" do
+    data_object = {
+      id: "in_sensitive",
+      object: "invoice",
+      customer: "cus_sensitive",
+      customer_email: "owner@example.test",
+      hosted_invoice_url: "https://invoice.stripe.com/i/acct_sensitive/test_sensitive",
+      invoice_pdf: "https://pay.stripe.com/invoice/acct_sensitive/pdf_sensitive",
+      payment_intent: "pi_sensitive",
+      lines: {
+        data: [
+          {
+            id: "il_sensitive",
+            description: "Private invoice line",
+            amount: 49900
+          }
+        ]
+      }
+    }
+    payload = stripe_event_payload(
+      event_id: "evt_payment_succeeded",
+      event_type: "invoice.payment_succeeded",
+      livemode: true,
+      data_object: data_object
+    )
+    log_output = capture_rails_logs do
+      post webhooks_stripe_path, params: payload, headers: stripe_signature_headers(payload)
+    end
+
+    assert_response :success
+
+    filtered_parameters = request.filtered_parameters
+    assert_equal "[FILTERED]", filtered_parameters["data"]
+    assert_not filtered_parameters.key?("stripe")
+
+    assert_includes log_output, "Stripe webhook ignored"
+    assert_includes log_output, "reason=deferred"
+    assert_includes log_output, "event_id=evt_payment_succeeded"
+    assert_includes log_output, "event_type=invoice.payment_succeeded"
+    assert_includes log_output, "livemode=true"
+    assert_not_includes log_output, "owner@example.test"
+    assert_not_includes log_output, "https://invoice.stripe.com"
+    assert_not_includes log_output, "https://pay.stripe.com"
+    assert_not_includes log_output, "Private invoice line"
+    assert_not_includes log_output, "pi_sensitive"
+    assert_not_includes log_output, "\"stripe\""
+
+    receipt = BillingWebhookEvent.find_by!(provider: "stripe", external_event_id: "evt_payment_succeeded")
+    assert_equal "invoice.payment_succeeded", receipt.event_type
+    assert_equal "ignored", receipt.status
+  end
+
   test "duplicate valid delivery returns success without a second receipt" do
     payload = stripe_event_payload(event_id: "evt_duplicate", event_type: "invoice.paid")
     headers = stripe_signature_headers(payload)
@@ -373,7 +475,7 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
     post webhooks_stripe_path, params: payload, headers: stripe_signature_headers(payload)
   end
 
-  def stripe_event_payload(event_id:, event_type: "customer.subscription.updated", livemode: false, api_version: "2026-07-01")
+  def stripe_event_payload(event_id:, event_type: "customer.subscription.updated", livemode: false, api_version: "2026-07-01", data_object: nil)
     JSON.generate(
       id: event_id,
       object: "event",
@@ -381,7 +483,7 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
       livemode: livemode,
       api_version: api_version,
       data: {
-        object: {
+        object: data_object || {
           id: "sub_test",
           object: "subscription"
         }
@@ -396,6 +498,22 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
       "CONTENT_TYPE" => "application/json",
       "Stripe-Signature" => Stripe::Webhook::Signature.generate_header(timestamp, signature)
     }
+  end
+
+  def parameter_filter
+    ActiveSupport::ParameterFilter.new(Rails.application.config.filter_parameters)
+  end
+
+  def capture_rails_logs
+    previous_logger = Rails.logger
+    output = StringIO.new
+    Rails.logger = ActiveSupport::TaggedLogging.new(ActiveSupport::Logger.new(output))
+
+    yield
+
+    output.string
+  ensure
+    Rails.logger = previous_logger
   end
 
   def csrf_skipped_for_action?(controller, action)

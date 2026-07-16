@@ -8,6 +8,7 @@ module Billing
       customer.subscription.updated
       invoice.paid
       invoice.payment_failed
+      invoice.payment_succeeded
     ].freeze
 
     Result = Struct.new(:success?, :billing_webhook_event, :duplicate?, keyword_init: true)

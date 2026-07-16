@@ -1,5 +1,7 @@
 module Webhooks
   class StripeController < ApplicationController
+    wrap_parameters false
+
     allow_unauthenticated_access only: :create
     skip_before_action :ensure_active_user!, only: :create
     skip_before_action :verify_authenticity_token, only: :create

@@ -129,5 +129,8 @@ Select the initial events this phase is ready to receive and ignore safely:
 - `customer.subscription.deleted`
 - `invoice.paid`
 - `invoice.payment_failed`
+- `invoice.payment_succeeded`
 
 Store the Dashboard endpoint signing secret in `STRIPE_WEBHOOK_SECRET`. Verify delivery from Stripe Dashboard after deployment before considering production webhook setup complete. Test-mode and live-mode deliveries are distinguished by the stored `livemode` flag.
+
+Boat Binder recognizes both `invoice.paid` and `invoice.payment_succeeded` as deferred successful-invoice events in this phase. They are recorded and intentionally ignored until subscription lifecycle synchronization is implemented.
