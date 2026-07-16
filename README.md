@@ -66,3 +66,68 @@ heroku config:set SMTP_USERNAME=postmaster@mg.example.com SMTP_PASSWORD=...
 ```
 
 Password reset delivery failures are logged server-side and shown to users as a generic safe message to avoid account enumeration.
+
+## Stripe Foundation
+
+Boat Binder uses the official `stripe` Ruby gem for verified webhook receipt. Local `Subscription` records remain the app source of truth for access and UI behavior; normal app requests do not call Stripe to decide access.
+
+Required Heroku config vars for Stripe-dependent operations:
+
+- `STRIPE_SECRET_KEY`
+- `STRIPE_PUBLISHABLE_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+
+Do not commit Stripe keys or webhook secrets. Keep production values in Heroku config vars or Rails credentials. The app can boot without Stripe secrets for development/test workflows that do not invoke Stripe, but webhook verification fails safely until `STRIPE_WEBHOOK_SECRET` is configured.
+
+Webhook endpoint:
+
+```text
+POST https://app.boat-binder.com/webhooks/stripe
+```
+
+The endpoint verifies the raw request body with `Stripe::Webhook.construct_event`, stores event metadata in `billing_webhook_events`, and uses a unique `[provider, external_event_id]` index for idempotency. Full raw payloads, API keys, and signing secrets are not stored.
+
+Current Phase 2 behavior intentionally records and ignores verified events. Subscription lifecycle synchronization, Checkout, billing portal, Stripe Customer creation, access enforcement, invoice sync, and billing UI are deferred.
+
+### Local Stripe CLI Testing
+
+1. Install and authenticate the Stripe CLI using Stripe's official instructions.
+2. Start Rails locally, for example:
+
+   ```sh
+   /opt/homebrew/opt/ruby/bin/ruby bin/rails server -p 3000
+   ```
+
+3. Forward Stripe events to the local webhook endpoint:
+
+   ```sh
+   stripe listen --forward-to localhost:3000/webhooks/stripe
+   ```
+
+4. Copy the temporary CLI signing secret printed by `stripe listen` into `STRIPE_WEBHOOK_SECRET` for the Rails process you are testing. The CLI signing secret is different from the production Dashboard endpoint secret.
+5. Trigger a harmless event:
+
+   ```sh
+   stripe trigger customer.subscription.updated
+   ```
+
+6. Confirm the request returns 2xx and a `BillingWebhookEvent` row is recorded with provider `stripe`, the external event ID, event type, livemode flag, and status `ignored`.
+
+### Production Stripe Setup
+
+In Stripe Dashboard, create an HTTPS webhook endpoint for:
+
+```text
+https://app.boat-binder.com/webhooks/stripe
+```
+
+Select the initial events this phase is ready to receive and ignore safely:
+
+- `checkout.session.completed`
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+- `invoice.paid`
+- `invoice.payment_failed`
+
+Store the Dashboard endpoint signing secret in `STRIPE_WEBHOOK_SECRET`. Verify delivery from Stripe Dashboard after deployment before considering production webhook setup complete. Test-mode and live-mode deliveries are distinguished by the stored `livemode` flag.
