@@ -114,10 +114,22 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
       "metadata" => "ordinary metadata",
       "resource" => "ordinary resource",
       "headlines" => "ordinary headlines",
+      "customer" => "cus_sensitive",
+      "customer_account" => "acct_sensitive",
+      "customer_address" => "private address",
       "hosted_invoice_url" => "https://invoice.stripe.com/i/private",
       "invoice_pdf" => "https://pay.stripe.com/invoice/private.pdf",
+      "customer_name" => "Owner Name",
+      "customer_note" => "ordinary customer note",
+      "customer_phone" => "555-1212",
+      "customer_shipping" => "private shipping",
+      "customer_success_manager" => "ordinary CSM",
+      "customer_tax_ids" => [ "txi_sensitive" ],
+      "charge" => "ch_sensitive",
+      "discharge_notes" => "ordinary discharge notes",
       "payment_intent" => "pi_sensitive",
-      "customer_email" => "owner@example.test"
+      "customer_email" => "owner@example.test",
+      "prospective_customer" => "ordinary prospect"
     )
 
     assert_equal "[FILTERED]", filtered["data"]
@@ -126,10 +138,22 @@ class StripeWebhookTest < ActionDispatch::IntegrationTest
     assert_equal "ordinary metadata", filtered["metadata"]
     assert_equal "ordinary resource", filtered["resource"]
     assert_equal "ordinary headlines", filtered["headlines"]
+    assert_equal "[FILTERED]", filtered["customer"]
+    assert_equal "[FILTERED]", filtered["customer_account"]
+    assert_equal "[FILTERED]", filtered["customer_address"]
     assert_equal "[FILTERED]", filtered["hosted_invoice_url"]
     assert_equal "[FILTERED]", filtered["invoice_pdf"]
+    assert_equal "[FILTERED]", filtered["customer_name"]
+    assert_equal "ordinary customer note", filtered["customer_note"]
+    assert_equal "[FILTERED]", filtered["customer_phone"]
+    assert_equal "[FILTERED]", filtered["customer_shipping"]
+    assert_equal "ordinary CSM", filtered["customer_success_manager"]
+    assert_equal "[FILTERED]", filtered["customer_tax_ids"]
+    assert_equal "[FILTERED]", filtered["charge"]
+    assert_equal "ordinary discharge notes", filtered["discharge_notes"]
     assert_equal "[FILTERED]", filtered["payment_intent"]
     assert_equal "[FILTERED]", filtered["customer_email"]
+    assert_equal "ordinary prospect", filtered["prospective_customer"]
   end
 
   test "webhook parameter logs filter billing payload and do not duplicate stripe wrapper" do
