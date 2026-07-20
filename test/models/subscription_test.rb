@@ -7,6 +7,7 @@ class SubscriptionTest < ActiveSupport::TestCase
     assert_includes Subscription::PROVIDERS, "local"
     assert_includes Subscription::PROVIDERS, "stripe"
     assert_includes Subscription::PLANS, "legacy"
+    assert_includes Subscription::PLANS, "self_managed"
     assert_includes Subscription::STATUSES, "past_due"
     assert subscription.trialing?
     assert subscription.access_allowed?
@@ -205,6 +206,26 @@ class SubscriptionTest < ActiveSupport::TestCase
     assert provider_constraint
     assert_match(/provider.*local/, provider_constraint.expression)
     assert_match(/provider.*stripe/, provider_constraint.expression)
+  end
+
+  test "plan check constraint allows self managed subscriptions" do
+    subscription = Subscription.create!(
+      account: bare_account(name: "Self Managed Subscription"),
+      plan: "self_managed",
+      status: "trialing",
+      provider: "stripe",
+      external_subscription_id: "sub_self_managed"
+    )
+
+    assert_equal "self_managed", subscription.plan
+    assert_equal "Self managed", subscription.plan_label
+
+    constraints = ActiveRecord::Base.connection.check_constraints(:subscriptions)
+    plan_constraint = constraints.find { |constraint| constraint.name == "chk_subscriptions_plan" }
+
+    assert plan_constraint
+    assert_match(/legacy/, plan_constraint.expression)
+    assert_match(/self_managed/, plan_constraint.expression)
   end
 
   private

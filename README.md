@@ -76,8 +76,29 @@ Required Heroku config vars for Stripe-dependent operations:
 - `STRIPE_SECRET_KEY`
 - `STRIPE_PUBLISHABLE_KEY`
 - `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_SELF_MANAGED_MONTHLY_PRICE_ID`
+- `STRIPE_SELF_MANAGED_ANNUAL_PRICE_ID`
 
 Do not commit Stripe keys or webhook secrets. Keep production values in Heroku config vars or Rails credentials. The app can boot without Stripe secrets for development/test workflows that do not invoke Stripe, but webhook verification fails safely until `STRIPE_WEBHOOK_SECRET` is configured.
+
+### Subscription Plan Catalog
+
+Boat Binder defines subscription billing options locally in `Billing::SubscriptionPlanCatalog`. The catalog is read-only application configuration; loading or reading it does not query Stripe and does not create Stripe Products, Prices, Customers, Checkout Sessions, or Subscriptions.
+
+Initial application plan:
+
+- Plan key: `self_managed`
+- Monthly option key: `self_managed_monthly`, $14/month, 7-day trial metadata
+- Annual option key: `self_managed_annual`, $154/year, 7-day trial metadata
+
+The monthly and annual options are billing choices for the same stable `self_managed` application plan. Stripe Products and Prices are created manually in Stripe Dashboard. Configure the resulting test-mode Price IDs in development/staging with:
+
+```sh
+heroku config:set STRIPE_SELF_MANAGED_MONTHLY_PRICE_ID=price_test_monthly
+heroku config:set STRIPE_SELF_MANAGED_ANNUAL_PRICE_ID=price_test_annual
+```
+
+Live-mode Price IDs must be configured separately before launch. Trial behavior is catalog metadata in this phase and will be applied later when Checkout is implemented. Subscription lifecycle synchronization, Checkout, billing portal, Stripe Customer creation, access enforcement, owner-user limits, crew invitations, account billing UI, and pricing-page UI remain deferred.
 
 Webhook endpoint:
 
