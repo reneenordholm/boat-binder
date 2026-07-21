@@ -85,6 +85,23 @@ class BuildWeekDemoAccountSetupTest < ActiveSupport::TestCase
     assert_not_includes second_output.string, DEMO_PASSWORD
   end
 
+  test "existing marked demo account is refreshed" do
+    account = Account.create!(
+      name: "Alex Johnson",
+      account_type: "client",
+      active: false,
+      time_zone: "America/Los_Angeles",
+      notes: "#{BuildWeek::DemoAccountSetup::DEMO_MARKER} Keep this operator note."
+    )
+
+    result = BuildWeek::DemoAccountSetup.call(output: StringIO.new)
+
+    assert_equal account.id, result.account.id
+    assert result.account.reload.active?
+    assert_includes result.account.notes, BuildWeek::DemoAccountSetup::DEMO_MARKER
+    assert_includes result.account.notes, "Keep this operator note."
+  end
+
   test "unrelated accounts are untouched" do
     unrelated = create_account(name: "Unrelated Owner")
     unrelated_vessel = create_vessel(account: unrelated, name: "Unrelated Vessel")
@@ -132,12 +149,61 @@ class BuildWeekDemoAccountSetupTest < ActiveSupport::TestCase
   end
 
   test "conflicting non demo account is rejected clearly" do
-    create_account(name: "Alex Johnson")
+    account = create_account(name: "Alex Johnson")
 
     error = assert_raises(BuildWeek::DemoAccountSetup::ConflictError) do
       BuildWeek::DemoAccountSetup.call(output: StringIO.new)
     end
 
     assert_includes error.message, "not marked as the Build Week demo account"
+    assert_nil account.reload.notes
+  end
+
+  test "same-name account with nil notes is treated as unmarked" do
+    account = create_account(name: "Alex Johnson")
+    account.update!(notes: nil)
+
+    assert_raises(BuildWeek::DemoAccountSetup::ConflictError) do
+      BuildWeek::DemoAccountSetup.call(output: StringIO.new)
+    end
+
+    assert_nil account.reload.notes
+  end
+
+  test "marked same-name account is selected when an unmarked same-name account exists" do
+    unmarked = create_account(name: "Alex Johnson")
+    unmarked.update!(notes: "Real customer account notes.")
+    marked = Account.create!(
+      name: "Alex Johnson",
+      account_type: "client",
+      active: true,
+      time_zone: "America/Los_Angeles",
+      notes: "#{BuildWeek::DemoAccountSetup::DEMO_MARKER} Existing fictional demo account."
+    )
+
+    result = BuildWeek::DemoAccountSetup.call(output: StringIO.new)
+
+    assert_equal marked.id, result.account.id
+    assert_equal "Real customer account notes.", unmarked.reload.notes
+    assert_empty unmarked.assets
+    assert_not_equal unmarked.id, result.user.account_memberships.sole.account_id
+  end
+
+  test "multiple marked same-name demo accounts raise a clear conflict" do
+    2.times do |index|
+      Account.create!(
+        name: "Alex Johnson",
+        account_type: "client",
+        active: true,
+        time_zone: "America/Los_Angeles",
+        notes: "#{BuildWeek::DemoAccountSetup::DEMO_MARKER} Duplicate #{index}."
+      )
+    end
+
+    error = assert_raises(BuildWeek::DemoAccountSetup::ConflictError) do
+      BuildWeek::DemoAccountSetup.call(output: StringIO.new)
+    end
+
+    assert_includes error.message, "Multiple Build Week demo accounts exist"
   end
 end

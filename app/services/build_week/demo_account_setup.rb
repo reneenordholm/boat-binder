@@ -54,11 +54,21 @@ module BuildWeek
     end
 
     def find_or_create_account
-      account = Account.find_by(name: ACCOUNT_NAME)
-      raise ConflictError, "Account #{ACCOUNT_NAME.inspect} exists but is not marked as the Build Week demo account" if account && !demo_account?(account)
+      marked_accounts = marked_demo_accounts
 
-      return update_account!(account) if account
+      case marked_accounts.count
+      when 1
+        update_account!(marked_accounts.first)
+      when 0
+        raise ConflictError, "Account #{ACCOUNT_NAME.inspect} exists but is not marked as the Build Week demo account" if accounts_matching_name.exists?
 
+        create_account
+      else
+        raise ConflictError, "Multiple Build Week demo accounts exist for #{ACCOUNT_NAME.inspect}"
+      end
+    end
+
+    def create_account
       creator = AccountCreator.call(account_attributes: account_attributes)
       raise ActiveRecord::RecordInvalid, creator.account unless creator.success?
 
@@ -66,7 +76,7 @@ module BuildWeek
     end
 
     def update_account!(account)
-      account.update!(account_attributes)
+      account.update!(account_attributes.merge(notes: demo_notes(account.notes)))
       account
     end
 
@@ -76,12 +86,24 @@ module BuildWeek
         account_type: "client",
         active: true,
         time_zone: ACCOUNT_TIME_ZONE,
-        notes: "#{DEMO_MARKER} Fictional owner dataset for Boat Binder Build Week judging."
+        notes: demo_notes
       }
     end
 
-    def demo_account?(account)
-      account.notes.to_s.include?(DEMO_MARKER)
+    def demo_notes(existing_notes = nil)
+      notes = existing_notes.to_s.strip
+      return "#{DEMO_MARKER} Fictional owner dataset for Boat Binder Build Week judging." if notes.blank?
+      return notes if notes.include?(DEMO_MARKER)
+
+      "#{DEMO_MARKER} #{notes}"
+    end
+
+    def accounts_matching_name
+      Account.where(name: ACCOUNT_NAME)
+    end
+
+    def marked_demo_accounts
+      accounts_matching_name.where("notes LIKE ?", "%#{Account.sanitize_sql_like(DEMO_MARKER)}%")
     end
 
     def find_or_create_user(account)
