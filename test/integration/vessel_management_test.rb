@@ -556,7 +556,7 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
       }
     }
 
-    assert_redirected_to root_path
+    assert_response :not_found
     assert_not other_vessel.reload.primary_photo.attached?
   end
 
@@ -572,7 +572,7 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
 
     delete primary_photo_vessel_path(other_vessel)
 
-    assert_redirected_to root_path
+    assert_response :not_found
     assert other_vessel.reload.primary_photo.attached?
     assert ActiveStorage::Blob.exists?(primary_photo_blob_id)
   end
@@ -584,9 +584,7 @@ class VesselManagementTest < ActionDispatch::IntegrationTest
 
     patch vessel_path(vessel), params: { asset: { name: vessel.name, account_id: other_account.id } }
 
-    assert_redirected_to root_path
-    follow_redirect!
-    assert_includes response.body, Authorization::ACCESS_DENIED_MESSAGE
+    assert_response :not_found
     assert_equal vessel.account, vessel.reload.account
   end
 

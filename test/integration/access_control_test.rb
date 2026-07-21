@@ -109,7 +109,7 @@ class AccessControlTest < ActionDispatch::IntegrationTest
     assert_response :not_found
 
     get edit_vessel_path(@owner_b_vessel)
-    assert_access_denied_redirect
+    assert_response :not_found
 
     get vessel_path(@owner_a_vessel)
     assert_response :success

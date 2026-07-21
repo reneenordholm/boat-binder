@@ -175,6 +175,14 @@ class OwnerEditorAccessTest < ActionDispatch::IntegrationTest
   test "editor owner can edit permitted vessel fields" do
     sign_in_as @editor_owner
 
+    get vessel_path(@vessel)
+    assert_response :success
+    assert_includes response.body, @vessel.name
+
+    get edit_vessel_path(@vessel)
+    assert_response :success
+    assert_select "form[action=?]", vessel_path(@vessel)
+
     patch vessel_path(@vessel), params: {
       asset: {
         account_id: @account.id,
@@ -188,6 +196,25 @@ class OwnerEditorAccessTest < ActionDispatch::IntegrationTest
     assert_equal "Blue Meridian Updated", @vessel.name
     assert_equal "Elliott Bay Marina", @vessel.marina
     assert_equal "B-12", @vessel.slip
+  end
+
+  test "editor owner cannot load or edit vessels outside active accounts" do
+    sign_in_as @editor_owner
+
+    get vessel_path(@other_vessel)
+    assert_response :not_found
+
+    get edit_vessel_path(@other_vessel)
+    assert_response :not_found
+
+    patch vessel_path(@other_vessel), params: {
+      asset: {
+        name: "Unauthorized update"
+      }
+    }
+
+    assert_response :not_found
+    assert_equal "Tide Runner", @other_vessel.reload.name
   end
 
   test "editor owner cannot reassign a vessel account with a crafted request" do
@@ -224,10 +251,13 @@ class OwnerEditorAccessTest < ActionDispatch::IntegrationTest
   test "editor owner cannot delete a vessel" do
     sign_in_as @editor_owner
 
-    assert_no_difference -> { Asset.vessels.count } do
+    vessel_lookup_queries = count_sql_queries(->(sql) {
+      sql.include?("FROM \"assets\"")
+    }) do
       delete vessel_path(@vessel)
     end
 
+    assert_equal 0, vessel_lookup_queries
     assert_access_denied_redirect
     assert Asset.exists?(@vessel.id)
   end
