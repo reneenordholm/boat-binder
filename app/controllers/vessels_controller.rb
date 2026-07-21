@@ -3,6 +3,8 @@ class VesselsController < ApplicationController
 
   before_action :require_write_access!, only: %i[new create edit update destroy destroy_primary_photo]
   before_action :set_vessel, only: %i[show edit update destroy destroy_primary_photo]
+  before_action :require_vessel_write_access!, only: %i[edit update destroy destroy_primary_photo]
+  before_action :require_internal!, only: %i[destroy]
 
   def index
     @query = params[:q].to_s.strip
@@ -34,7 +36,7 @@ class VesselsController < ApplicationController
 
   def new
     @vessel = Asset.new(asset_type: "vessel")
-    @accounts = scoped_accounts.active.ordered
+    @accounts = manageable_accounts.active.ordered
   end
 
   def create
@@ -55,7 +57,7 @@ class VesselsController < ApplicationController
 
     redirect_to vessel_path(@vessel), notice: "Vessel added."
   rescue ActiveRecord::RecordInvalid
-    @accounts = scoped_accounts.active.ordered
+    @accounts = manageable_accounts.active.ordered
     render :new, status: :unprocessable_entity
   rescue PrimaryPhotoAttachmentError => error
     Rails.logger.error("Primary photo attachment failed for vessel create: #{error.message}")
@@ -133,13 +135,13 @@ class VesselsController < ApplicationController
   end
 
   def owner_options_for(vessel)
-    scoped_accounts.where(active: true).or(scoped_accounts.where(id: vessel.account_id)).ordered
+    manageable_accounts.where(active: true).or(manageable_accounts.where(id: vessel.account_id)).ordered
   end
 
   def render_vessel_form_with_primary_photo_error(vessel, message, template)
     vessel.valid?
     vessel.errors.add(:primary_photo, message)
-    @accounts = template == :new ? scoped_accounts.active.ordered : owner_options_for(vessel)
+    @accounts = template == :new ? manageable_accounts.active.ordered : owner_options_for(vessel)
     render template, status: :unprocessable_entity
   end
 
@@ -151,7 +153,7 @@ class VesselsController < ApplicationController
       return false
     end
 
-    vessel.account = scoped_accounts.find(vessel_account_id)
+    vessel.account = manageable_accounts.find(vessel_account_id)
     true
   end
 
@@ -161,5 +163,9 @@ class VesselsController < ApplicationController
 
   def can_manage_vessel_accounts?
     can_manage_records?
+  end
+
+  def require_vessel_write_access!
+    require_write_access!(@vessel.account)
   end
 end

@@ -4,7 +4,7 @@ module Authorization
   ACCESS_DENIED_MESSAGE = "That page is not available for your account."
 
   included do
-    helper_method :current_user, :admin_user?, :internal_user?, :owner_user?, :can_manage_records?
+    helper_method :current_user, :admin_user?, :internal_user?, :owner_user?, :can_manage_records?, :can_manage_account?
   end
 
   private
@@ -25,8 +25,17 @@ module Authorization
     current_user&.owner?
   end
 
-  def can_manage_records?
-    internal_user?
+  def can_manage_records?(account = nil)
+    return can_manage_account?(account) if account.present?
+
+    internal_user? || manageable_accounts.exists?
+  end
+
+  def can_manage_account?(account)
+    return true if internal_user?
+    return false unless current_user&.owner? && current_user.active? && account.present?
+
+    current_user.account_memberships.active.exists?(account_id: account.id, access_level: "editor")
   end
 
   def require_admin!
@@ -37,8 +46,8 @@ module Authorization
     deny_access! unless internal_user?
   end
 
-  def require_write_access!
-    deny_access! unless can_manage_records?
+  def require_write_access!(account = nil)
+    deny_access! unless can_manage_records?(account)
   end
 
   def deny_access!
@@ -63,6 +72,13 @@ module Authorization
     Account.where(id: current_user.active_account_ids)
   end
 
+  def manageable_accounts
+    return Account.all if internal_user?
+    return Account.none unless current_user&.owner? && current_user.active?
+
+    Account.where(id: current_user.account_memberships.active.where(access_level: "editor").select(:account_id))
+  end
+
   def scoped_assets
     return Asset.all if internal_user?
 
@@ -71,6 +87,10 @@ module Authorization
 
   def scoped_vessels
     scoped_assets.vessels
+  end
+
+  def manageable_vessels
+    Asset.vessels.where(account_id: manageable_accounts.select(:id))
   end
 
   def scoped_documents

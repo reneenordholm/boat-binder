@@ -13,7 +13,7 @@
           <%= link_to "Add Vessel", new_vessel_path, class: primary_button_class("bg-[#7DAAB3] text-[#0B1F35] hover:bg-[#B9D5DA]") %>
           <%= link_to "Add Owner", new_owner_path, class: secondary_button_class("border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white") if internal_user? %>
           <%= link_to "Upload Document", new_document_path, class: secondary_button_class("border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white") %>
-          <% if @vessels.first %>
+          <% if internal_user? && @vessels.first %>
             <%= link_to "Add Service Visit", new_vessel_service_visit_path(@vessels.first), class: secondary_button_class("border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white") %>
           <% end %>
         <% else %>
