@@ -19,7 +19,7 @@ class VesselsController < ApplicationController
       service_visit_engine_readings: :asset_engine,
       service_visit_battery_checks: :asset_battery
     ).recent.limit(5)
-    @documents = @vessel.documents.order(created_at: :desc).limit(6)
+    @documents = @vessel.documents.with_attached_file.order(created_at: :desc).limit(6)
     @binder_notes = @vessel.binder_notes.order(created_at: :desc).limit(6)
     @overdue_reminders = @vessel.overdue_reminders.limit(4)
     @upcoming_reminders = @vessel.reminders.upcoming.limit(5)
