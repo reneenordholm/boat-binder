@@ -1,5 +1,7 @@
 class DocumentsController < ApplicationController
   DocumentFileAttachmentError = Class.new(StandardError)
+  DOCUMENT_ATTRIBUTE_KEYS = %i[title document_type notes].freeze
+  DOCUMENT_RELATIONSHIP_KEYS = %i[account_id asset_id].freeze
 
   before_action :set_vessel, only: %i[new create]
   before_action :require_document_write_access!, only: %i[new create]
@@ -23,11 +25,11 @@ class DocumentsController < ApplicationController
   end
 
   def create
-    file_upload = document_params[:file]
+    file_upload = document_file_upload
     @document = if @vessel
-      @vessel.documents.new(document_params.except(:file))
+      @vessel.documents.new(document_attribute_params)
     else
-      Document.new(document_params.except(:file))
+      Document.new(document_attribute_params)
     end
     return unless assign_document_relationships(@document, template: :new)
 
@@ -53,8 +55,8 @@ class DocumentsController < ApplicationController
   end
 
   def update
-    file_upload = document_params[:file]
-    @document.assign_attributes(document_params.except(:file))
+    file_upload = document_file_upload
+    @document.assign_attributes(document_attribute_params)
     return unless assign_document_relationships(@document, template: :edit)
 
     if (file_error = Document.file_upload_error(file_upload))
@@ -97,12 +99,26 @@ class DocumentsController < ApplicationController
     @document = scoped_documents.find(params[:id])
   end
 
-  def document_params
-    params.require(:document).permit(:title, :document_type, :notes, :file)
+  def document_request_params
+    @document_request_params ||= params.require(:document)
+  end
+
+  def document_attribute_params
+    @document_attribute_params ||= document_request_params
+      .slice(*DOCUMENT_ATTRIBUTE_KEYS)
+      .permit(*DOCUMENT_ATTRIBUTE_KEYS)
+  end
+
+  def document_file_upload
+    document_request_params[:file]
+  end
+
+  def document_relationship_params
+    @document_relationship_params ||= document_request_params.slice(*DOCUMENT_RELATIONSHIP_KEYS)
   end
 
   def set_form_collections
-    @accounts = manageable_accounts.active.ordered
+    @accounts = manageable_accounts.active.includes(:vessel_assets).ordered
     @vessels = manageable_vessels.active.includes(:account).ordered
   end
 
@@ -153,11 +169,11 @@ class DocumentsController < ApplicationController
   end
 
   def document_account_id
-    params.require(:document)[:account_id]
+    document_relationship_params[:account_id]
   end
 
   def document_asset_id
-    params.require(:document)[:asset_id]
+    document_relationship_params[:asset_id]
   end
 
   def can_manage_document_relationships?

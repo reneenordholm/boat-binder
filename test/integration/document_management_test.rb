@@ -338,6 +338,47 @@ class DocumentManagementTest < ActionDispatch::IntegrationTest
     assert_redirected_to vessel_path(vessel, anchor: "documents")
   end
 
+  test "document relationship fields are permitted for create and update parsing" do
+    sign_in_as
+    vessel = create_vessel
+
+    unpermitted_keys = capture_unpermitted_parameters do
+      post documents_path, params: {
+        document: {
+          account_id: vessel.account_id,
+          asset_id: vessel.id,
+          title: "Parsed relationship fields",
+          document_type: "insurance",
+          notes: "Relationship fields should be authorized separately."
+        }
+      }
+    end
+
+    assert_empty unpermitted_keys
+    document = Document.find_by!(title: "Parsed relationship fields")
+    assert_equal vessel.account, document.account
+    assert_equal vessel, document.asset
+
+    unpermitted_keys = capture_unpermitted_parameters do
+      patch document_path(document), params: {
+        document: {
+          account_id: vessel.account_id,
+          asset_id: vessel.id,
+          title: "Updated parsed relationship fields",
+          document_type: "registration",
+          notes: "Still parsed without direct mass assignment."
+        }
+      }
+    end
+
+    assert_empty unpermitted_keys
+    document.reload
+    assert_equal "Updated parsed relationship fields", document.title
+    assert_equal "registration", document.document_type
+    assert_equal vessel.account, document.account
+    assert_equal vessel, document.asset
+  end
+
   test "captain cannot create a document with mismatched owner and vessel" do
     sign_in_as
     account = create_account(name: "Elliott Family")
@@ -642,5 +683,22 @@ class DocumentManagementTest < ActionDispatch::IntegrationTest
     yield
   ensure
     attached_one.define_method(:attach, original_attach)
+  end
+
+  def capture_unpermitted_parameters
+    original_behavior = ActionController::Parameters.action_on_unpermitted_parameters
+    ActionController::Parameters.action_on_unpermitted_parameters = :log
+    keys = []
+    callback = lambda do |_name, _started, _finished, _unique_id, payload|
+      keys.concat(Array(payload[:keys]).map(&:to_s))
+    end
+
+    ActiveSupport::Notifications.subscribed(callback, "unpermitted_parameters.action_controller") do
+      yield
+    end
+
+    keys
+  ensure
+    ActionController::Parameters.action_on_unpermitted_parameters = original_behavior
   end
 end
