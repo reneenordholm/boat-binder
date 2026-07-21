@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_14_190000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_20_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -278,7 +278,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_14_190000) do
     t.index ["account_id"], name: "index_subscriptions_on_account_id", unique: true
     t.index ["provider", "external_customer_id"], name: "index_subscriptions_on_provider_and_external_customer_id", where: "(external_customer_id IS NOT NULL)"
     t.index ["provider", "external_subscription_id"], name: "index_subscriptions_on_provider_and_external_subscription_id", unique: true, where: "(external_subscription_id IS NOT NULL)"
-    t.check_constraint "plan::text = ANY (ARRAY['legacy'::character varying, 'starter'::character varying, 'professional'::character varying]::text[])", name: "chk_subscriptions_plan"
+    t.check_constraint "plan::text = ANY (ARRAY['legacy'::character varying, 'self_managed'::character varying, 'starter'::character varying, 'professional'::character varying]::text[])", name: "chk_subscriptions_plan"
     t.check_constraint "provider::text = ANY (ARRAY['local'::character varying, 'stripe'::character varying]::text[])", name: "chk_subscriptions_provider"
     t.check_constraint "status::text = ANY (ARRAY['legacy'::character varying, 'trialing'::character varying, 'active'::character varying, 'past_due'::character varying, 'canceled'::character varying, 'expired'::character varying, 'suspended'::character varying]::text[])", name: "chk_subscriptions_status"
   end
