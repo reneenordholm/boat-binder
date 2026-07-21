@@ -20,6 +20,266 @@ class DocumentManagementTest < ActionDispatch::IntegrationTest
     assert_not Document.exists?(document.id)
   end
 
+  test "document index shows view edit and metadata only status" do
+    account = create_account(name: "Elliott Family")
+    vessel = create_vessel(account: account)
+    document = vessel.documents.create!(account: account, title: "Metadata only", document_type: "insurance")
+    editor_owner = create_user(email: "document-index-editor@example.test", role: "owner")
+    create_account_membership(user: editor_owner, account: account, access_level: "editor")
+    sign_in_as editor_owner
+
+    get documents_path
+
+    assert_response :success
+    assert_select "a[href=?]", document_path(document), text: "Metadata only"
+    assert_select "a[href=?]", document_path(document), text: "View"
+    assert_select "a[href=?]", edit_document_path(document), text: "Edit / Add file"
+    assert_includes response.body, "No file attached"
+    assert_not_includes response.body, "Open file"
+    assert_not_includes response.body, "Download"
+  end
+
+  test "owner editor can view and edit document metadata" do
+    account = create_account(name: "Elliott Family")
+    vessel = create_vessel(account: account)
+    document = vessel.documents.create!(
+      account: account,
+      title: "Insurance binder",
+      document_type: "insurance",
+      notes: "Original notes."
+    )
+    editor_owner = create_user(email: "document-editor@example.test", role: "owner")
+    create_account_membership(user: editor_owner, account: account, access_level: "editor")
+    sign_in_as editor_owner
+
+    get document_path(document)
+    assert_response :success
+    assert_includes response.body, "No file is currently attached."
+    assert_select "a[href=?]", edit_document_path(document), text: "Edit / Add file"
+
+    patch document_path(document), params: {
+      document: {
+        account_id: account.id,
+        asset_id: vessel.id,
+        title: "Updated insurance",
+        document_type: "registration",
+        notes: "Updated by owner editor."
+      }
+    }
+
+    assert_redirected_to vessel_path(vessel, anchor: "documents")
+    document.reload
+    assert_equal "Updated insurance", document.title
+    assert_equal "registration", document.document_type
+    assert_equal "Updated by owner editor.", document.notes
+    assert_not document.file.attached?
+  end
+
+  test "owner editor can attach a file to a metadata only document" do
+    account = create_account(name: "Elliott Family")
+    document = Document.create!(account: account, title: "Registration", document_type: "registration")
+    editor_owner = create_user(email: "document-attach-editor@example.test", role: "owner")
+    create_account_membership(user: editor_owner, account: account, access_level: "editor")
+    sign_in_as editor_owner
+
+    patch document_path(document), params: {
+      document: {
+        account_id: account.id,
+        title: document.title,
+        document_type: document.document_type,
+        file: fixture_file_upload("sample.pdf", "application/pdf")
+      }
+    }
+
+    assert_redirected_to document_path(document)
+    assert document.reload.file.attached?
+    assert_equal "application/pdf", document.file.blob.content_type
+  end
+
+  test "owner editor can replace an existing file and metadata updates preserve attachment" do
+    account = create_account(name: "Elliott Family")
+    document = Document.create!(account: account, title: "Receipt", document_type: "receipt")
+    document.file.attach(fixture_file_upload("sample.pdf", "application/pdf"))
+    original_blob_id = document.file.blob.id
+    editor_owner = create_user(email: "document-replace-editor@example.test", role: "owner")
+    create_account_membership(user: editor_owner, account: account, access_level: "editor")
+    sign_in_as editor_owner
+
+    patch document_path(document), params: {
+      document: {
+        account_id: account.id,
+        title: "Receipt renamed",
+        document_type: document.document_type,
+        notes: "No replacement file selected."
+      }
+    }
+
+    assert_redirected_to document_path(document)
+    document.reload
+    assert_equal "Receipt renamed", document.title
+    assert_equal original_blob_id, document.file.blob.id
+
+    patch document_path(document), params: {
+      document: {
+        account_id: account.id,
+        title: document.title,
+        document_type: document.document_type,
+        file: fixture_file_upload("sample.png", "image/png")
+      }
+    }
+
+    assert_redirected_to document_path(document)
+    document.reload
+    assert document.file.attached?
+    assert_not_equal original_blob_id, document.file.blob.id
+    assert_equal "image/png", document.file.blob.content_type
+  end
+
+  test "read only owner can view but cannot edit replace or delete documents" do
+    account = create_account(name: "Elliott Family")
+    document = Document.create!(account: account, title: "Read only document", document_type: "other")
+    read_only_owner = create_user(email: "document-readonly@example.test", role: "owner")
+    create_account_membership(user: read_only_owner, account: account, access_level: "read_only")
+    sign_in_as read_only_owner
+
+    get document_path(document)
+    assert_response :success
+    assert_select "a[href=?]", edit_document_path(document), count: 0
+
+    get edit_document_path(document)
+    assert_access_denied_redirect
+
+    patch document_path(document), params: {
+      document: {
+        account_id: account.id,
+        title: "Blocked",
+        document_type: "other",
+        file: fixture_file_upload("sample.pdf", "application/pdf")
+      }
+    }
+    assert_access_denied_redirect
+
+    assert_no_difference -> { Document.count } do
+      delete document_path(document)
+    end
+    assert_access_denied_redirect
+    assert_equal "Read only document", document.reload.title
+    assert_not document.file.attached?
+  end
+
+  test "owner editor cannot view or mutate documents in another account" do
+    account = create_account(name: "Elliott Family")
+    other_account = create_account(name: "Harbor North")
+    document = Document.create!(account: other_account, title: "Private document", document_type: "other")
+    editor_owner = create_user(email: "document-scope-editor@example.test", role: "owner")
+    create_account_membership(user: editor_owner, account: account, access_level: "editor")
+    sign_in_as editor_owner
+
+    get document_path(document)
+    assert_response :not_found
+
+    get edit_document_path(document)
+    assert_response :not_found
+
+    patch document_path(document), params: {
+      document: {
+        account_id: other_account.id,
+        title: "Blocked",
+        document_type: "other"
+      }
+    }
+    assert_response :not_found
+
+    delete document_path(document)
+    assert_response :not_found
+    assert Document.exists?(document.id)
+  end
+
+  test "crafted owner editor relationship requests cannot escape manageable accounts" do
+    account = create_account(name: "Elliott Family")
+    other_account = create_account(name: "Harbor North")
+    vessel = create_vessel(account: account)
+    other_vessel = create_vessel(account: other_account, name: "Restricted Vessel")
+    document = vessel.documents.create!(account: account, title: "Managed document", document_type: "other")
+    editor_owner = create_user(email: "document-crafted-editor@example.test", role: "owner")
+    create_account_membership(user: editor_owner, account: account, access_level: "editor")
+    sign_in_as editor_owner
+
+    patch document_path(document), params: {
+      document: {
+        account_id: other_account.id,
+        asset_id: other_vessel.id,
+        title: "Crafted update",
+        document_type: "other"
+      }
+    }
+
+    assert_response :not_found
+    document.reload
+    assert_equal account, document.account
+    assert_equal vessel, document.asset
+    assert_equal "Managed document", document.title
+  end
+
+  test "invalid edit upload rerenders without replacing existing attachment" do
+    account = create_account(name: "Elliott Family")
+    document = Document.create!(account: account, title: "Safe file", document_type: "other")
+    document.file.attach(fixture_file_upload("sample.pdf", "application/pdf"))
+    original_blob_id = document.file.blob.id
+    editor_owner = create_user(email: "document-invalid-editor@example.test", role: "owner")
+    create_account_membership(user: editor_owner, account: account, access_level: "editor")
+    sign_in_as editor_owner
+
+    patch document_path(document), params: {
+      document: {
+        account_id: account.id,
+        title: "Attempted bad replacement",
+        document_type: "other",
+        file: fixture_file_upload("sample.exe", "application/x-msdownload")
+      }
+    }
+
+    assert_response :unprocessable_entity
+    assert_includes response.body, "File must be a PDF, JPEG, PNG, or WEBP file"
+    document.reload
+    assert_equal "Safe file", document.title
+    assert_equal original_blob_id, document.file.blob.id
+  end
+
+  test "oversized edit upload rerenders without replacing existing attachment" do
+    account = create_account(name: "Elliott Family")
+    document = Document.create!(account: account, title: "Sized file", document_type: "other")
+    document.file.attach(fixture_file_upload("sample.pdf", "application/pdf"))
+    original_blob_id = document.file.blob.id
+    editor_owner = create_user(email: "document-oversized-editor@example.test", role: "owner")
+    create_account_membership(user: editor_owner, account: account, access_level: "editor")
+    oversized_file = Tempfile.new([ "oversized-edit", ".pdf" ])
+    sign_in_as editor_owner
+
+    begin
+      oversized_file.binmode
+      oversized_file.truncate(Document::MAX_FILE_SIZE + 1)
+      oversized_file.rewind
+
+      patch document_path(document), params: {
+        document: {
+          account_id: account.id,
+          title: "Attempted oversized replacement",
+          document_type: "other",
+          file: Rack::Test::UploadedFile.new(oversized_file.path, "application/pdf", true)
+        }
+      }
+    ensure
+      oversized_file.close!
+    end
+
+    assert_response :unprocessable_entity
+    assert_includes response.body, "File must be 25 MB or smaller"
+    document.reload
+    assert_equal "Sized file", document.title
+    assert_equal original_blob_id, document.file.blob.id
+  end
+
   test "captain creates a document from main documents page and associates it with a vessel" do
     sign_in_as
     vessel = create_vessel

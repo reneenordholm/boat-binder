@@ -18,6 +18,24 @@ class Document < ApplicationRecord
   validate :asset_belongs_to_account
   validate :file_is_safe_upload
 
+  def self.file_upload_error(upload)
+    return if upload.blank?
+    return "must be a PDF, JPEG, PNG, or WEBP file" unless ALLOWED_FILE_CONTENT_TYPES.include?(file_upload_content_type(upload))
+
+    "must be 25 MB or smaller" if file_upload_size(upload).to_i > MAX_FILE_SIZE
+  end
+
+  def self.file_upload_content_type(upload)
+    upload.respond_to?(:content_type) ? upload.content_type.to_s : ""
+  end
+
+  def self.file_upload_size(upload)
+    return upload.size if upload.respond_to?(:size)
+    return upload.tempfile.size if upload.respond_to?(:tempfile) && upload.tempfile.respond_to?(:size)
+
+    0
+  end
+
   private
 
   def asset_belongs_to_account

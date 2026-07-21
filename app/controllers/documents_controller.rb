@@ -1,13 +1,17 @@
 class DocumentsController < ApplicationController
-  before_action :require_write_access!, except: %i[index]
+  DocumentFileAttachmentError = Class.new(StandardError)
+
   before_action :set_vessel, only: %i[new create]
   before_action :require_document_write_access!, only: %i[new create]
-  before_action :set_document, only: %i[destroy]
-  before_action :require_existing_document_write_access!, only: %i[destroy]
-  before_action :set_form_collections, only: %i[new create]
+  before_action :set_document, only: %i[show edit update destroy]
+  before_action :require_existing_document_write_access!, only: %i[edit update destroy]
+  before_action :set_form_collections, only: %i[new create edit update]
 
   def index
     @documents = scoped_documents.includes(:account, :asset).order(created_at: :desc)
+  end
+
+  def show
   end
 
   def new
@@ -19,18 +23,60 @@ class DocumentsController < ApplicationController
   end
 
   def create
+    file_upload = document_params[:file]
     @document = if @vessel
-      @vessel.documents.new(document_params)
+      @vessel.documents.new(document_params.except(:file))
     else
-      Document.new(document_params)
+      Document.new(document_params.except(:file))
     end
-    return unless assign_document_relationships(@document)
+    return unless assign_document_relationships(@document, template: :new)
 
-    if @document.save
-      redirect_to after_create_path, notice: "Document uploaded."
-    else
-      render :new, status: :unprocessable_entity
+    if (file_error = Document.file_upload_error(file_upload))
+      render_document_form_with_file_error(@document, file_error, :new)
+      return
     end
+
+    ActiveRecord::Base.transaction do
+      @document.save!
+      attach_document_file!(@document, file_upload) if file_upload.present?
+    end
+
+    redirect_to after_create_path, notice: "Document uploaded."
+  rescue ActiveRecord::RecordInvalid
+    render :new, status: :unprocessable_entity
+  rescue ActiveStorage::IntegrityError, DocumentFileAttachmentError => error
+    Rails.logger.error("Document file attachment failed for create: #{error.class}: #{error.message}")
+    render_document_form_with_file_error(@document, "could not be attached. Please try again.", :new)
+  end
+
+  def edit
+  end
+
+  def update
+    file_upload = document_params[:file]
+    @document.assign_attributes(document_params.except(:file))
+    return unless assign_document_relationships(@document, template: :edit)
+
+    if (file_error = Document.file_upload_error(file_upload))
+      render_document_form_with_file_error(@document, file_error, :edit)
+      return
+    end
+
+    ActiveRecord::Base.transaction do
+      @document.save!
+      attach_document_file!(@document, file_upload) if file_upload.present?
+    end
+
+    if @document.asset&.asset_type == "vessel"
+      redirect_to vessel_path(@document.asset, anchor: "documents"), notice: "Document updated."
+    else
+      redirect_to document_path(@document), notice: "Document updated."
+    end
+  rescue ActiveRecord::RecordInvalid
+    render :edit, status: :unprocessable_entity
+  rescue ActiveStorage::IntegrityError, DocumentFileAttachmentError => error
+    Rails.logger.error("Document file attachment failed for update: #{error.class}: #{error.message}")
+    render_document_form_with_file_error(@document, "could not be attached. Please try again.", :edit)
   end
 
   def destroy
@@ -60,7 +106,7 @@ class DocumentsController < ApplicationController
     @vessels = manageable_vessels.active.includes(:account).ordered
   end
 
-  def assign_document_relationships(document)
+  def assign_document_relationships(document, template:)
     if @vessel
       document.account = @vessel.account
       return true
@@ -77,16 +123,28 @@ class DocumentsController < ApplicationController
       document.asset = manageable_vessels.find(document_asset_id)
       if document_account_id.present? && document_account_id.to_i != document.asset.account_id
         document.errors.add(:asset, "must belong to the selected owner")
-        render :new, status: :unprocessable_entity
+        render template, status: :unprocessable_entity
         return false
       end
 
       document.account = document.asset.account
     elsif document_account_id.present?
       document.account = manageable_accounts.find(document_account_id)
+      document.asset = nil
     end
 
     true
+  end
+
+  def attach_document_file!(document, upload)
+    document.file.attach(upload)
+    raise DocumentFileAttachmentError, "file was not attached" unless document.file.attached?
+  end
+
+  def render_document_form_with_file_error(document, message, template)
+    document.valid?
+    document.errors.add(:file, message)
+    render template, status: :unprocessable_entity
   end
 
   def document_account_id
