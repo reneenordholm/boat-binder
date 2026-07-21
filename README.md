@@ -85,7 +85,7 @@ Concrete workflow examples:
 
 Human judgment remained responsible for product direction, architecture decisions, review, manual testing, deployment, and final approval.
 
-Planned GPT-5.6 feature: a Vessel Ownership Brief that synthesizes reminders, service history, inspection findings, engine hours, and follow-up items into a concise owner summary. This is roadmap functionality, not part of the running application today. Feature issue: TBD once the GitHub issue is created.
+Planned GPT-5.6 feature: a Vessel Ownership Brief that synthesizes reminders, service history, inspection findings, engine hours, and follow-up items into a concise owner summary. This is roadmap functionality, not part of the running application today.
 
 ## Detailed Documentation
 
