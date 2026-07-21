@@ -20,10 +20,38 @@ class DocumentManagementTest < ActionDispatch::IntegrationTest
     assert_not Document.exists?(document.id)
   end
 
+  test "vessel page renders six recent documents with attached and missing file controls" do
+    sign_in_as
+    vessel = create_vessel
+    older_document = vessel.documents.create!(account: vessel.account, title: "Older document", document_type: "other", created_at: 8.days.ago)
+
+    6.times do |index|
+      document = vessel.documents.create!(
+        account: vessel.account,
+        title: "Recent document #{index + 1}",
+        document_type: "other",
+        created_at: (index + 1).hours.ago
+      )
+      document.file.attach(fixture_file_upload("sample.pdf", "application/pdf")) if index.even?
+    end
+
+    get vessel_path(vessel)
+
+    assert_response :success
+    assert_not_includes response.body, older_document.title
+    assert_select "#documents a", text: /Recent document/, count: 6
+    assert_includes response.body, "No file attached"
+    assert_includes response.body, "Open file"
+    assert_includes response.body, "Download"
+    assert_select "#documents a[href^='/rails/active_storage']", minimum: 1
+  end
+
   test "document index shows view edit and metadata only status" do
     account = create_account(name: "Elliott Family")
     vessel = create_vessel(account: account)
     document = vessel.documents.create!(account: account, title: "Metadata only", document_type: "insurance")
+    attached_document = vessel.documents.create!(account: account, title: "Attached file", document_type: "registration")
+    attached_document.file.attach(fixture_file_upload("sample.pdf", "application/pdf"))
     editor_owner = create_user(email: "document-index-editor@example.test", role: "owner")
     create_account_membership(user: editor_owner, account: account, access_level: "editor")
     sign_in_as editor_owner
@@ -35,8 +63,9 @@ class DocumentManagementTest < ActionDispatch::IntegrationTest
     assert_select "a[href=?]", document_path(document), text: "View"
     assert_select "a[href=?]", edit_document_path(document), text: "Edit / Add file"
     assert_includes response.body, "No file attached"
-    assert_not_includes response.body, "Open file"
-    assert_not_includes response.body, "Download"
+    assert_select "a[href=?]", document_path(attached_document), text: "Attached file"
+    assert_includes response.body, "Open file"
+    assert_includes response.body, "Download"
   end
 
   test "owner editor can view and edit document metadata" do
@@ -373,6 +402,57 @@ class DocumentManagementTest < ActionDispatch::IntegrationTest
       assert_equal content_type, document.file.blob.content_type
       assert_redirected_to vessel_path(vessel, anchor: "documents")
     end
+  end
+
+  test "document upload MIME detection uses file contents and preserves upload IO" do
+    sign_in_as
+    vessel = create_vessel
+    upload = fixture_file_upload("sample.png", "text/plain")
+    upload.tempfile.rewind
+    original_position = upload.tempfile.pos
+
+    assert_nil Document.file_upload_error(upload)
+    assert_equal original_position, upload.tempfile.pos
+
+    assert_difference -> { Document.count }, 1 do
+      post documents_path, params: {
+        document: {
+          account_id: vessel.account_id,
+          asset_id: vessel.id,
+          title: "Detected image upload",
+          document_type: "other",
+          file: upload
+        }
+      }
+    end
+
+    document = Document.find_by!(title: "Detected image upload")
+    assert_equal "image/png", document.file.blob.content_type
+    assert_redirected_to vessel_path(vessel, anchor: "documents")
+  end
+
+  test "document uploads reject spoofed allowed content types" do
+    sign_in_as
+    vessel = create_vessel
+
+    assert_no_difference -> { Document.count } do
+      assert_no_difference -> { ActiveStorage::Blob.count } do
+        assert_no_difference -> { ActiveStorage::Attachment.count } do
+          post documents_path, params: {
+            document: {
+              account_id: vessel.account_id,
+              asset_id: vessel.id,
+              title: "Spoofed executable",
+              document_type: "other",
+              file: fixture_file_upload("sample.exe", "image/jpeg")
+            }
+          }
+        end
+      end
+    end
+
+    assert_response :unprocessable_entity
+    assert_includes response.body, "File must be a PDF, JPEG, PNG, or WEBP file"
   end
 
   test "document uploads reject executable and unknown content types" do

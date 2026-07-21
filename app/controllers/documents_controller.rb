@@ -8,7 +8,7 @@ class DocumentsController < ApplicationController
   before_action :set_form_collections, only: %i[new create edit update]
 
   def index
-    @documents = scoped_documents.includes(:account, :asset).order(created_at: :desc)
+    @documents = scoped_documents.with_attached_file.includes(:account, :asset).order(created_at: :desc)
   end
 
   def show

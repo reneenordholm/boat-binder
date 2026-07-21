@@ -26,7 +26,23 @@ class Document < ApplicationRecord
   end
 
   def self.file_upload_content_type(upload)
-    upload.respond_to?(:content_type) ? upload.content_type.to_s : ""
+    io = file_upload_io(upload)
+
+    return "" unless io
+
+    current_position = io.pos if io.respond_to?(:pos)
+    io.rewind if io.respond_to?(:rewind)
+
+    Marcel::MimeType.for(
+      io,
+      name: file_upload_filename(upload)
+    )
+  ensure
+    if io && current_position && io.respond_to?(:seek)
+      io.seek(current_position)
+    elsif io&.respond_to?(:rewind)
+      io.rewind
+    end
   end
 
   def self.file_upload_size(upload)
@@ -35,6 +51,20 @@ class Document < ApplicationRecord
 
     0
   end
+
+  def self.file_upload_io(upload)
+    return upload.tempfile if upload.respond_to?(:tempfile) && upload.tempfile
+
+    upload if upload.respond_to?(:read)
+  end
+  private_class_method :file_upload_io
+
+  def self.file_upload_filename(upload)
+    return upload.original_filename if upload.respond_to?(:original_filename)
+
+    upload.path if upload.respond_to?(:path)
+  end
+  private_class_method :file_upload_filename
 
   private
 
