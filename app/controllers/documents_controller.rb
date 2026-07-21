@@ -139,6 +139,11 @@ class DocumentsController < ApplicationController
   def attach_document_file!(document, upload)
     document.file.attach(upload)
     raise DocumentFileAttachmentError, "file was not attached" unless document.file.attached?
+  rescue DocumentFileAttachmentError
+    raise
+  rescue StandardError => error
+    Rails.logger.error("Document file attachment raised #{error.class}: #{error.message}")
+    raise DocumentFileAttachmentError, "could not be attached"
   end
 
   def render_document_form_with_file_error(document, message, template)

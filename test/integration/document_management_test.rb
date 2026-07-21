@@ -435,6 +435,86 @@ class DocumentManagementTest < ActionDispatch::IntegrationTest
     assert_redirected_to vessel_path(vessel, anchor: "documents")
   end
 
+  test "document upload MIME detection preserves zero upload IO position" do
+    upload = fixture_file_upload("sample.pdf", "application/pdf")
+    upload.tempfile.rewind
+    original_position = upload.tempfile.pos
+
+    assert_equal 0, original_position
+    assert_nil Document.file_upload_error(upload)
+    assert_equal original_position, upload.tempfile.pos
+  end
+
+  test "unexpected file attachment failure rerenders new form safely" do
+    sign_in_as
+    vessel = create_vessel
+    log_output = StringIO.new
+
+    with_captured_logger(log_output) do
+      with_failing_document_attachment(IOError.new("sensitive storage path /tmp/private-key")) do
+        assert_no_difference -> { Document.count } do
+          assert_no_difference -> { ActiveStorage::Blob.count } do
+            assert_no_difference -> { ActiveStorage::Attachment.count } do
+              post documents_path, params: {
+                document: {
+                  account_id: vessel.account_id,
+                  asset_id: vessel.id,
+                  title: "Failed attachment",
+                  document_type: "other",
+                  file: fixture_file_upload("sample.pdf", "application/pdf")
+                }
+              }
+            end
+          end
+        end
+      end
+    end
+
+    assert_response :unprocessable_entity
+    assert_includes response.body, "File could not be attached. Please try again."
+    assert_not_includes response.body, "IOError"
+    assert_not_includes response.body, "sensitive storage path"
+    assert_includes log_output.string, "IOError"
+    assert_includes log_output.string, "sensitive storage path"
+  end
+
+  test "unexpected file attachment failure rerenders edit form and preserves existing attachment" do
+    account = create_account(name: "Elliott Family")
+    document = Document.create!(account: account, title: "Existing document", document_type: "other")
+    document.file.attach(fixture_file_upload("sample.pdf", "application/pdf"))
+    original_blob_id = document.file.blob.id
+    editor_owner = create_user(email: "document-attachment-failure@example.test", role: "owner")
+    create_account_membership(user: editor_owner, account: account, access_level: "editor")
+    log_output = StringIO.new
+    sign_in_as editor_owner
+
+    with_captured_logger(log_output) do
+      with_failing_document_attachment(RuntimeError.new("storage bucket secret details")) do
+        assert_no_difference -> { ActiveStorage::Attachment.count } do
+          patch document_path(document), params: {
+            document: {
+              account_id: account.id,
+              title: "Failed replacement",
+              document_type: document.document_type,
+              file: fixture_file_upload("sample.png", "image/png")
+            }
+          }
+        end
+      end
+    end
+
+    assert_response :unprocessable_entity
+    assert_includes response.body, "File could not be attached. Please try again."
+    assert_not_includes response.body, "RuntimeError"
+    assert_not_includes response.body, "storage bucket secret details"
+    assert_includes log_output.string, "RuntimeError"
+    assert_includes log_output.string, "storage bucket secret details"
+
+    document.reload
+    assert_equal "Existing document", document.title
+    assert_equal original_blob_id, document.file.blob.id
+  end
+
   test "document uploads reject spoofed allowed content types" do
     sign_in_as
     vessel = create_vessel
@@ -540,5 +620,27 @@ class DocumentManagementTest < ActionDispatch::IntegrationTest
     assert_redirected_to root_path
     follow_redirect!
     assert_includes response.body, Authorization::ACCESS_DENIED_MESSAGE
+  end
+
+  private
+
+  def with_captured_logger(output)
+    original_logger = Rails.logger
+    Rails.logger = ActiveSupport::Logger.new(output)
+    yield
+  ensure
+    Rails.logger = original_logger
+  end
+
+  def with_failing_document_attachment(error)
+    attached_one = ActiveStorage::Attached::One
+    original_attach = attached_one.instance_method(:attach)
+    attached_one.define_method(:attach) do |_attachable|
+      raise error
+    end
+
+    yield
+  ensure
+    attached_one.define_method(:attach, original_attach)
   end
 end
