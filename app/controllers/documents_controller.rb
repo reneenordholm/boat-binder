@@ -1,6 +1,9 @@
 class DocumentsController < ApplicationController
   before_action :require_write_access!, except: %i[index]
   before_action :set_vessel, only: %i[new create]
+  before_action :require_document_write_access!, only: %i[new create]
+  before_action :set_document, only: %i[destroy]
+  before_action :require_existing_document_write_access!, only: %i[destroy]
   before_action :set_form_collections, only: %i[new create]
 
   def index
@@ -31,7 +34,6 @@ class DocumentsController < ApplicationController
   end
 
   def destroy
-    @document = scoped_documents.find(params[:id])
     fallback_vessel = @document.asset if @document.asset&.asset_type == "vessel"
     @document.file.purge if @document.file.attached?
     @document.destroy!
@@ -45,13 +47,17 @@ class DocumentsController < ApplicationController
     @vessel = scoped_vessels.find_by!(slug: params[:vessel_id]) if params[:vessel_id].present?
   end
 
+  def set_document
+    @document = scoped_documents.find(params[:id])
+  end
+
   def document_params
     params.require(:document).permit(:title, :document_type, :notes, :file)
   end
 
   def set_form_collections
-    @accounts = scoped_accounts.active.ordered
-    @vessels = scoped_vessels.active.includes(:account).ordered
+    @accounts = manageable_accounts.active.ordered
+    @vessels = manageable_vessels.active.includes(:account).ordered
   end
 
   def assign_document_relationships(document)
@@ -68,7 +74,7 @@ class DocumentsController < ApplicationController
     end
 
     if document_asset_id.present?
-      document.asset = scoped_vessels.find(document_asset_id)
+      document.asset = manageable_vessels.find(document_asset_id)
       if document_account_id.present? && document_account_id.to_i != document.asset.account_id
         document.errors.add(:asset, "must belong to the selected owner")
         render :new, status: :unprocessable_entity
@@ -77,7 +83,7 @@ class DocumentsController < ApplicationController
 
       document.account = document.asset.account
     elsif document_account_id.present?
-      document.account = scoped_accounts.find(document_account_id)
+      document.account = manageable_accounts.find(document_account_id)
     end
 
     true
@@ -93,6 +99,16 @@ class DocumentsController < ApplicationController
 
   def can_manage_document_relationships?
     can_manage_records?
+  end
+
+  def require_document_write_access!
+    return require_write_access!(@vessel.account) if @vessel
+
+    require_write_access!
+  end
+
+  def require_existing_document_write_access!
+    require_write_access!(@document.account)
   end
 
   def after_create_path

@@ -27,13 +27,13 @@
           <div class="mt-4 flex flex-wrap gap-2">
             <%= link_to "Open file", url_for(document.file), class: "inline-flex min-h-11 items-center rounded-md bg-slate-900 px-4 py-2 text-sm font-bold text-white" %>
             <%= link_to "Download", rails_blob_path(document.file, disposition: "attachment"), class: "inline-flex min-h-11 items-center rounded-md border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700" %>
-            <% if can_manage_records? %>
+            <% if can_manage_account?(document.account) %>
               <%= button_to "Delete", document_path(document), method: :delete, form: { data: { turbo_confirm: "Delete #{document.title}?" } }, class: "min-h-11 rounded-md border border-red-200 px-4 py-2 text-sm font-bold text-red-700", data: { turbo_submits_with: "Deleting..." } %>
             <% end %>
           </div>
         <% else %>
           <div class="mt-4">
-            <% if can_manage_records? %>
+            <% if can_manage_account?(document.account) %>
               <%= button_to "Delete", document_path(document), method: :delete, form: { data: { turbo_confirm: "Delete #{document.title}?" } }, class: "min-h-11 rounded-md border border-red-200 px-4 py-2 text-sm font-bold text-red-700", data: { turbo_submits_with: "Deleting..." } %>
             <% end %>
           </div>
