@@ -399,7 +399,7 @@ module BuildWeek
       output.puts "Documents: #{result.account.documents.count}"
       output.puts "Service visits: #{result.account.assets.joins(:service_visits).count}"
       output.puts "Reminders: #{result.account.assets.joins(:reminders).count}"
-      output.puts "Password: set from BUILD_WEEK_DEMO_PASSWORD or the documented demo-only local default."
+      output.puts "Password: set from BUILD_WEEK_DEMO_PASSWORD; production requires this variable."
     end
   end
 end

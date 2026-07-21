@@ -13,8 +13,8 @@ class BuildWeekDemoAccountSetupTest < ActiveSupport::TestCase
   end
 
   teardown do
-    ENV["BUILD_WEEK_DEMO_EMAIL"] = @previous_email
-    ENV["BUILD_WEEK_DEMO_PASSWORD"] = @previous_password
+    restore_env("BUILD_WEEK_DEMO_EMAIL", @previous_email)
+    restore_env("BUILD_WEEK_DEMO_PASSWORD", @previous_password)
   end
 
   test "first run creates the expected demo user account and content" do
@@ -50,6 +50,18 @@ class BuildWeekDemoAccountSetupTest < ActiveSupport::TestCase
     assert_equal 4, account.binder_notes.count
     assert_not_includes output.string, DEMO_PASSWORD
     assert_includes output.string, "Build Week demo account refreshed."
+    assert_includes output.string, "Password: set from BUILD_WEEK_DEMO_PASSWORD; production requires this variable."
+  end
+
+  test "environment restoration deletes originally unset variables and restores present ones" do
+    ENV["BUILD_WEEK_DEMO_EMAIL"] = "temporary@example.test"
+    ENV["BUILD_WEEK_DEMO_PASSWORD"] = "temporary-password"
+
+    restore_env("BUILD_WEEK_DEMO_EMAIL", nil)
+    restore_env("BUILD_WEEK_DEMO_PASSWORD", "previous-password")
+
+    assert_nil ENV["BUILD_WEEK_DEMO_EMAIL"]
+    assert_equal "previous-password", ENV["BUILD_WEEK_DEMO_PASSWORD"]
   end
 
   test "second run refreshes without duplicating core records" do
@@ -265,5 +277,9 @@ class BuildWeekDemoAccountSetupTest < ActiveSupport::TestCase
 
   def uploaded_file(filename, content_type)
     Rack::Test::UploadedFile.new(file_fixture(filename).to_s, content_type, true)
+  end
+
+  def restore_env(name, previous_value)
+    previous_value.nil? ? ENV.delete(name) : ENV[name] = previous_value
   end
 end
