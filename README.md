@@ -17,21 +17,13 @@ Boat Binder is a mobile-first Rails SaaS MVP for vessel ownership records, maint
 
 Boat Binder is still an MVP. Stripe Checkout, billing portal, subscription enforcement, public signup, AI-powered document search, and maintenance-insight features are roadmap items rather than implemented customer-facing features.
 
-## Build Week
+## Build Week Demo
 
-- Tagline: **The digital home for boat ownership.**
-- Live demo: [https://app.boat-binder.com](https://app.boat-binder.com)
-- Repository: [https://github.com/reneenordholm/boat-binder](https://github.com/reneenordholm/boat-binder)
-- Demo data: fictional owner dataset for Build Week judging.
-- Demo access: owner role, active `editor` membership, scoped to the fictional demo account.
+- Live demo: [https://boat-binder.com](https://boat-binder.com)
+- Demo access uses a fictional owner account with two vessels, service history, reminders, notes, and document records.
+- Login credentials are provided privately with the Build Week submission.
 
-Create or refresh the Build Week demo account:
-
-```sh
-bin/rails runner db/seeds/build_week_demo.rb
-```
-
-The shared demo account may be modified by judges and restored by rerunning the command. Do not commit or document the production demo password. See [Build Week Demo](docs/build-week-demo.md) for Heroku setup and safety details.
+The demo contains no real customer or vessel data.
 
 ## Tech Stack
 
@@ -97,8 +89,6 @@ Planned GPT-5.6 feature: a Vessel Ownership Brief that synthesizes reminders, se
 
 ## Detailed Documentation
 
-- [Build Week Demo](docs/build-week-demo.md)
 - [Configuration](docs/configuration.md)
 - [Production Email](docs/email.md)
 - [Stripe Foundation](docs/stripe.md)
-- [Mobile Upload QA](docs/mobile-upload-qa.md)
