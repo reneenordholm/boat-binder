@@ -18,12 +18,61 @@ class OwnerEditorAccessTest < ActionDispatch::IntegrationTest
     captain = create_user(email: "captain-editor-access@example.test", role: "captain")
     sign_in_as captain
 
+    get new_vessel_path
+    assert_response :success
+
+    assert_difference -> { Asset.vessels.count }, 1 do
+      post vessels_path, params: {
+        asset: {
+          account_id: @account.id,
+          name: "Captain Created",
+          make: "Ranger",
+          model: "R-31"
+        }
+      }
+    end
+    assert_redirected_to vessel_path(Asset.find_by!(name: "Captain Created"))
+
     patch vessel_path(@vessel), params: {
       asset: { name: "Blue Meridian II", account_id: @account.id }
     }
 
     assert_redirected_to vessel_path(@vessel.reload)
     assert_equal "Blue Meridian II", @vessel.name
+  end
+
+  test "editor owner cannot access vessel creation" do
+    sign_in_as @editor_owner
+
+    get new_vessel_path
+    assert_access_denied_redirect
+
+    assert_no_difference -> { Asset.vessels.count } do
+      post vessels_path, params: {
+        asset: {
+          account_id: @account.id,
+          name: "Owner Created Vessel"
+        }
+      }
+    end
+    assert_access_denied_redirect
+  end
+
+  test "read only owner cannot access vessel creation" do
+    sign_in_as @read_only_owner
+
+    get new_vessel_path
+    assert_access_denied_redirect
+
+    assert_no_difference -> { Asset.vessels.count } do
+      post vessels_path, params: {
+        asset: {
+          account_id: @account.id,
+          name: "Read Only Created Vessel"
+        }
+      }
+    end
+    assert_access_denied_redirect
   end
 
   test "editor owner can create and edit a note in their account" do
@@ -141,6 +190,17 @@ class OwnerEditorAccessTest < ActionDispatch::IntegrationTest
     assert_equal "B-12", @vessel.slip
   end
 
+  test "editor owner cannot delete a vessel" do
+    sign_in_as @editor_owner
+
+    assert_no_difference -> { Asset.vessels.count } do
+      delete vessel_path(@vessel)
+    end
+
+    assert_access_denied_redirect
+    assert Asset.exists?(@vessel.id)
+  end
+
   test "editor owner can upload and replace a vessel primary photo" do
     sign_in_as @editor_owner
 
@@ -241,7 +301,16 @@ class OwnerEditorAccessTest < ActionDispatch::IntegrationTest
     assert_select "a[href=?]", new_vessel_document_path(@vessel), text: "Upload"
     assert_select "form[action=?]", vessel_binder_notes_path(@vessel)
     assert_select "a[href=?]", edit_vessel_binder_note_path(@vessel, note), text: "Edit"
+    assert_select "a[href=?]", new_vessel_path, count: 0
     assert_select "a[href=?]", new_vessel_service_visit_path(@vessel), count: 0
+
+    get vessels_path
+    assert_response :success
+    assert_select "a[href=?]", new_vessel_path, count: 0
+
+    get root_path
+    assert_response :success
+    assert_select "a[href=?]", new_vessel_path, count: 0
 
     sign_in_as @read_only_owner
     get vessel_path(@vessel)
@@ -253,11 +322,42 @@ class OwnerEditorAccessTest < ActionDispatch::IntegrationTest
     assert_select "a[href=?]", edit_vessel_binder_note_path(@vessel, note), count: 0
   end
 
+  test "repeated account write checks load editor membership ids once" do
+    @vessel.documents.create!(account: @account, title: "Registration", document_type: "registration")
+    @vessel.binder_notes.create!(account: @account, title: "Visible note", body: "Original", note_type: "general")
+    sign_in_as @editor_owner
+
+    editor_membership_queries = count_sql_queries(->(sql) {
+      sql.include?("account_memberships") && sql.include?("access_level")
+    }) do
+      get vessel_path(@vessel)
+    end
+
+    assert_response :success
+    assert_equal 1, editor_membership_queries
+  end
+
   private
 
   def assert_access_denied_redirect
     assert_redirected_to root_path
     follow_redirect!
     assert_includes response.body, Authorization::ACCESS_DENIED_MESSAGE
+  end
+
+  def count_sql_queries(matcher)
+    count = 0
+    callback = lambda do |_name, _started, _finished, _unique_id, payload|
+      sql = payload[:sql].to_s
+      next if payload[:name] == "SCHEMA" || payload[:cached]
+
+      count += 1 if matcher.call(sql)
+    end
+
+    ActiveSupport::Notifications.subscribed(callback, "sql.active_record") do
+      yield
+    end
+
+    count
   end
 end

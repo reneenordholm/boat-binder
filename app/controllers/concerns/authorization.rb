@@ -28,14 +28,14 @@ module Authorization
   def can_manage_records?(account = nil)
     return can_manage_account?(account) if account.present?
 
-    internal_user? || manageable_accounts.exists?
+    internal_user? || manageable_account_ids.any?
   end
 
   def can_manage_account?(account)
     return true if internal_user?
-    return false unless current_user&.owner? && current_user.active? && account.present?
+    return false unless account.present?
 
-    current_user.account_memberships.active.exists?(account_id: account.id, access_level: "editor")
+    manageable_account_ids.include?(account.id)
   end
 
   def require_admin!
@@ -74,9 +74,16 @@ module Authorization
 
   def manageable_accounts
     return Account.all if internal_user?
-    return Account.none unless current_user&.owner? && current_user.active?
 
-    Account.where(id: current_user.account_memberships.active.where(access_level: "editor").select(:account_id))
+    Account.where(id: manageable_account_ids)
+  end
+
+  def manageable_account_ids
+    @manageable_account_ids ||= if current_user&.owner? && current_user.active?
+      current_user.account_memberships.active.where(access_level: "editor").pluck(:account_id)
+    else
+      []
+    end
   end
 
   def scoped_assets

@@ -1,9 +1,10 @@
 class VesselsController < ApplicationController
   PrimaryPhotoAttachmentError = Class.new(StandardError)
 
-  before_action :require_write_access!, only: %i[new create edit update destroy destroy_primary_photo]
-  before_action :set_vessel, only: %i[show edit update destroy destroy_primary_photo]
-  before_action :require_vessel_write_access!, only: %i[edit update destroy destroy_primary_photo]
+  before_action :require_vessel_creation_access!, only: %i[new create]
+  before_action :set_scoped_vessel, only: %i[show]
+  before_action :set_vessel, only: %i[edit update destroy destroy_primary_photo]
+  before_action :require_vessel_write_access!, only: %i[edit update destroy_primary_photo]
   before_action :require_internal!, only: %i[destroy]
 
   def index
@@ -115,6 +116,10 @@ class VesselsController < ApplicationController
   end
 
   def set_vessel
+    @vessel = Asset.vessels.includes({ account: :contacts }, primary_photo_attachment: :blob).find_by!(slug: params[:id])
+  end
+
+  def set_scoped_vessel
     @vessel = scoped_vessels.includes({ account: :contacts }, primary_photo_attachment: :blob).find_by!(slug: params[:id])
   end
 
@@ -163,6 +168,10 @@ class VesselsController < ApplicationController
 
   def can_manage_vessel_accounts?
     can_manage_records?
+  end
+
+  def require_vessel_creation_access!
+    require_internal!
   end
 
   def require_vessel_write_access!
