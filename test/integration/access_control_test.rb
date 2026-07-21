@@ -562,12 +562,6 @@ class AccessControlTest < ActionDispatch::IntegrationTest
 
   private
 
-  def assert_access_denied_redirect
-    assert_redirected_to root_path
-    follow_redirect!
-    assert_includes response.body, Authorization::ACCESS_DENIED_MESSAGE
-  end
-
   def setup_access_records
     @admin = create_user(email: "admin@example.test", role: "admin", name: "Admin User")
     @captain = create_user(email: "captain-access@example.test", role: "captain", name: "Captain User")

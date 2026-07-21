@@ -449,12 +449,6 @@ class OwnerEditorAccessTest < ActionDispatch::IntegrationTest
 
   private
 
-  def assert_access_denied_redirect
-    assert_redirected_to root_path
-    follow_redirect!
-    assert_includes response.body, Authorization::ACCESS_DENIED_MESSAGE
-  end
-
   def count_sql_queries(matcher)
     count = 0
     callback = lambda do |_name, _started, _finished, _unique_id, payload|

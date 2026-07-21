@@ -97,7 +97,9 @@ module Authorization
   end
 
   def manageable_vessels
-    Asset.vessels.where(account_id: manageable_accounts.select(:id))
+    return Asset.vessels if internal_user?
+
+    Asset.vessels.where(account_id: manageable_account_ids)
   end
 
   def scoped_documents
