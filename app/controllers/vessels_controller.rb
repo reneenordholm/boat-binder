@@ -152,11 +152,7 @@ class VesselsController < ApplicationController
 
   def assign_vessel_account(vessel)
     return true if vessel_account_id.blank?
-
-    unless can_manage_vessel_accounts?
-      deny_access!
-      return false
-    end
+    return true unless internal_user?
 
     vessel.account = manageable_accounts.find(vessel_account_id)
     true
@@ -164,10 +160,6 @@ class VesselsController < ApplicationController
 
   def vessel_account_id
     params.require(:asset)[:account_id]
-  end
-
-  def can_manage_vessel_accounts?
-    can_manage_records?
   end
 
   def require_vessel_creation_access!

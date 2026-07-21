@@ -190,6 +190,37 @@ class OwnerEditorAccessTest < ActionDispatch::IntegrationTest
     assert_equal "B-12", @vessel.slip
   end
 
+  test "editor owner cannot reassign a vessel account with a crafted request" do
+    sign_in_as @editor_owner
+
+    patch vessel_path(@vessel), params: {
+      asset: {
+        account_id: @other_account.id,
+        name: "Blue Meridian Renamed"
+      }
+    }
+
+    assert_redirected_to vessel_path(@vessel.reload)
+    assert_equal "Blue Meridian Renamed", @vessel.name
+    assert_equal @account, @vessel.account
+  end
+
+  test "editor owner with two editor memberships still cannot transfer vessels" do
+    create_account_membership(user: @editor_owner, account: @other_account, access_level: "editor")
+    sign_in_as @editor_owner
+
+    patch vessel_path(@vessel), params: {
+      asset: {
+        account_id: @other_account.id,
+        name: "Blue Meridian Dual Editor"
+      }
+    }
+
+    assert_redirected_to vessel_path(@vessel.reload)
+    assert_equal "Blue Meridian Dual Editor", @vessel.name
+    assert_equal @account, @vessel.account
+  end
+
   test "editor owner cannot delete a vessel" do
     sign_in_as @editor_owner
 
@@ -228,6 +259,18 @@ class OwnerEditorAccessTest < ActionDispatch::IntegrationTest
     assert @vessel.primary_photo.attached?
     assert_not_equal first_blob_id, @vessel.primary_photo.blob.id
     assert_equal "image/png", @vessel.primary_photo.blob.content_type
+    assert_equal @account, @vessel.account
+  end
+
+  test "editor owner can remove a vessel primary photo without changing account" do
+    @vessel.primary_photo.attach(fixture_file_upload("sample.jpg", "image/jpeg"))
+    sign_in_as @editor_owner
+
+    delete primary_photo_vessel_path(@vessel)
+
+    assert_redirected_to vessel_path(@vessel)
+    assert_not @vessel.reload.primary_photo.attached?
+    assert_equal @account, @vessel.account
   end
 
   test "editor owner can create a document with a supported file" do
@@ -320,6 +363,43 @@ class OwnerEditorAccessTest < ActionDispatch::IntegrationTest
     assert_select "a[href=?]", new_vessel_document_path(@vessel), count: 0
     assert_select "form[action=?]", vessel_binder_notes_path(@vessel), count: 0
     assert_select "a[href=?]", edit_vessel_binder_note_path(@vessel, note), count: 0
+  end
+
+  test "vessel form shows editable account selector only to internal users" do
+    sign_in_as
+
+    get edit_vessel_path(@vessel)
+
+    assert_response :success
+    assert_select "select[name='asset[account_id]']"
+    assert_select "a[href=?]", new_owner_path, text: "Add owner"
+
+    sign_in_as @editor_owner
+
+    get edit_vessel_path(@vessel)
+
+    assert_response :success
+    assert_select "select[name='asset[account_id]']", count: 0
+    assert_select "a[href=?]", new_owner_path, text: "Add owner", count: 0
+    assert_includes response.body, @account.name
+  end
+
+  test "editor owner validation error rerender keeps owner account read only" do
+    sign_in_as @editor_owner
+
+    patch vessel_path(@vessel), params: {
+      asset: {
+        account_id: @other_account.id,
+        name: "",
+        marina: "Elliott Bay Marina"
+      }
+    }
+
+    assert_response :unprocessable_entity
+    assert_select "select[name='asset[account_id]']", count: 0
+    assert_select "a[href=?]", new_owner_path, text: "Add owner", count: 0
+    assert_includes response.body, @account.name
+    assert_equal @account, @vessel.reload.account
   end
 
   test "repeated account write checks load editor membership ids once" do
