@@ -409,10 +409,14 @@ class DocumentManagementTest < ActionDispatch::IntegrationTest
     vessel = create_vessel
     upload = fixture_file_upload("sample.png", "text/plain")
     upload.tempfile.rewind
+    upload.tempfile.read(10)
     original_position = upload.tempfile.pos
+    assert_operator original_position, :>, 0
 
     assert_nil Document.file_upload_error(upload)
     assert_equal original_position, upload.tempfile.pos
+
+    upload.tempfile.rewind
 
     assert_difference -> { Document.count }, 1 do
       post documents_path, params: {
