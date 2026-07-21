@@ -30,9 +30,11 @@ Demo login:
 
 ```sh
 /opt/homebrew/opt/ruby/bin/ruby bin/rails test:all
+/opt/homebrew/opt/ruby/bin/ruby bin/rubocop
+/opt/homebrew/opt/ruby/bin/ruby bin/bundler-audit
 ```
 
-The test suite covers model validations, associations, and the primary captain workflow for recording a service visit and viewing the owner report.
+The test suite covers model validations, associations, and the primary captain workflow for recording a service visit and viewing the owner report. The `bin/bundler-audit` wrapper updates the local ruby-advisory-db before scanning so local gem vulnerability checks match CI more closely.
 
 ## Mobile Upload QA
 
