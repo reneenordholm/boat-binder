@@ -97,16 +97,16 @@ class BuildWeekDemoAccountSetupTest < ActiveSupport::TestCase
     assert_equal "Unrelated Vessel", unrelated_vessel.reload.name
   end
 
-  test "demo owner has active membership and valid local subscription" do
+  test "demo owner has active writable membership and valid local subscription" do
     BuildWeek::DemoAccountSetup.call(output: StringIO.new)
 
     account = Account.find_by!(name: "Alex Johnson")
-    user = User.find_by!(email_address: DEMO_EMAIL)
+    user = User.find_by!(email_address: DEMO_EMAIL).reload
     membership = AccountMembership.find_by!(account: account, user: user)
     subscription = account.subscription
 
     assert membership.active?
-    assert_equal "read_only", membership.access_level
+    assert_equal "editor", membership.access_level
     assert subscription.valid?
     assert_equal "legacy", subscription.plan
     assert_equal "active", subscription.status
@@ -115,6 +115,20 @@ class BuildWeekDemoAccountSetupTest < ActiveSupport::TestCase
     assert_not subscription.managed_externally?
     assert_nil subscription.external_customer_id
     assert_nil subscription.external_subscription_id
+  end
+
+  test "demo owner remains scoped away from unrelated accounts" do
+    unrelated = create_account(name: "Unrelated Private Owner")
+
+    result = BuildWeek::DemoAccountSetup.call(output: StringIO.new)
+
+    account = result.account
+    user = User.find_by!(email_address: DEMO_EMAIL).reload
+    visible_account_ids = Account.where(id: user.active_account_ids).pluck(:id)
+
+    assert user.owner?
+    assert_equal [ account.id ], visible_account_ids
+    assert_not_includes visible_account_ids, unrelated.id
   end
 
   test "conflicting non demo account is rejected clearly" do

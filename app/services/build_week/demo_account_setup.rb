@@ -113,7 +113,7 @@ module BuildWeek
 
     def ensure_membership!(account, user)
       membership = AccountMembership.find_or_initialize_by(account: account, user: user)
-      membership.update!(access_level: "read_only", active: true)
+      membership.update!(access_level: "editor", active: true)
     end
 
     def ensure_subscription!(account)
