@@ -85,6 +85,60 @@ class BuildWeekDemoAccountSetupTest < ActiveSupport::TestCase
     assert_not_includes second_output.string, DEMO_PASSWORD
   end
 
+  test "failed refresh preserves existing records and attachment files after rollback" do
+    BuildWeek::DemoAccountSetup.call(output: StringIO.new)
+    account = Account.find_by!(name: "Alex Johnson")
+    document = account.documents.first
+    vessel = account.assets.vessels.first
+    document.file.attach(uploaded_file("sample.pdf", "application/pdf"))
+    vessel.primary_photo.attach(uploaded_file("sample.jpg", "image/jpeg"))
+    document_blob_id = document.file.blob.id
+    vessel_blob_id = vessel.primary_photo.blob.id
+    original_document_ids = account.documents.pluck(:id)
+    original_asset_ids = account.assets.pluck(:id)
+
+    setup = BuildWeek::DemoAccountSetup.new(output: StringIO.new)
+    setup.define_singleton_method(:create_vessels) { |*| raise "controlled refresh failure" }
+
+    assert_raises(RuntimeError) { setup.call }
+
+    assert_equal original_document_ids.sort, account.documents.reload.pluck(:id).sort
+    assert_equal original_asset_ids.sort, account.assets.reload.pluck(:id).sort
+    assert Document.exists?(document.id)
+    assert Asset.exists?(vessel.id)
+    assert ActiveStorage::Blob.exists?(document_blob_id)
+    assert ActiveStorage::Blob.exists?(vessel_blob_id)
+    assert document.reload.file.attached?
+    assert vessel.reload.primary_photo.attached?
+    assert document.file.download.bytesize.positive?
+    assert vessel.primary_photo.download.bytesize.positive?
+  end
+
+  test "successful refresh destroys old demo records and recreates intended content" do
+    BuildWeek::DemoAccountSetup.call(output: StringIO.new)
+    account = Account.find_by!(name: "Alex Johnson")
+    old_document = account.documents.first
+    old_vessel = account.assets.vessels.first
+    old_document.file.attach(uploaded_file("sample.pdf", "application/pdf"))
+    old_vessel.primary_photo.attach(uploaded_file("sample.jpg", "image/jpeg"))
+    old_document_id = old_document.id
+    old_vessel_id = old_vessel.id
+    old_document_attachment_id = old_document.file.attachment.id
+    old_photo_attachment_id = old_vessel.primary_photo.attachment.id
+
+    BuildWeek::DemoAccountSetup.call(output: StringIO.new)
+    account.reload
+
+    assert_not Document.exists?(old_document_id)
+    assert_not Asset.exists?(old_vessel_id)
+    assert_not ActiveStorage::Attachment.exists?(old_document_attachment_id)
+    assert_not ActiveStorage::Attachment.exists?(old_photo_attachment_id)
+    assert_equal %w[Reel\ Escape Sea\ Breeze], account.assets.vessels.order(:name).pluck(:name)
+    assert_equal 5, account.documents.count
+    assert_equal 4, account.assets.joins(:service_visits).count
+    assert_equal 5, account.assets.joins(:reminders).count
+  end
+
   test "existing marked demo account is refreshed" do
     account = Account.create!(
       name: "Alex Johnson",
@@ -205,5 +259,11 @@ class BuildWeekDemoAccountSetupTest < ActiveSupport::TestCase
     end
 
     assert_includes error.message, "Multiple Build Week demo accounts exist"
+  end
+
+  private
+
+  def uploaded_file(filename, content_type)
+    Rack::Test::UploadedFile.new(file_fixture(filename).to_s, content_type, true)
   end
 end

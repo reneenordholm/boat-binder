@@ -168,16 +168,10 @@ module BuildWeek
     end
 
     def remove_demo_content!(account)
-      account.documents.find_each do |document|
-        document.file.purge if document.file.attached?
-        document.destroy!
-      end
-      account.binder_notes.destroy_all
-      account.contacts.destroy_all
-      account.assets.find_each do |asset|
-        asset.primary_photo.purge if asset.primary_photo.attached?
-        asset.destroy!
-      end
+      account.documents.find_each(&:destroy!)
+      account.binder_notes.find_each(&:destroy!)
+      account.contacts.find_each(&:destroy!)
+      account.assets.find_each(&:destroy!)
     end
 
     def create_vessels(account, user)

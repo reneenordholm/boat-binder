@@ -79,11 +79,21 @@ The `bin/bundler-audit` wrapper updates the local ruby-advisory-db before scanni
 
 Boat Binder was built with human product direction and review, with OpenAI tools used as collaborators throughout the process.
 
-Codex was used as an engineering collaborator for implementing scoped GitHub issues, generating and updating tests, refactoring Rails code, investigating CI failures, addressing security review findings, hardening Stripe webhook processing, improving documentation, and preparing pull requests.
+Codex worked directly with this Rails repository as an engineering collaborator. It inspected existing code, implemented scoped GitHub issues, generated and updated tests, refactored models/controllers/views/services, remediated security findings, investigated CI failures, updated documentation, and prepared pull-request branches.
 
-GPT-5.6 was used as a product and engineering thought partner for product discovery, roadmap planning, architecture discussions, threat modeling, security review, interpreting logs and CI failures, designing manual QA plans, reviewing pull requests and Copilot findings, drafting implementation prompts and documentation, and shaping the Build Week demo and submission.
+GPT-5.6 was used meaningfully during product and engineering development, but Boat Binder does not currently include a customer-facing GPT-5.6 feature. It helped with product discovery, roadmap decisions, subscription and billing architecture, Stripe webhook security and idempotency design, threat-model discussions, CI and dependency-advisory analysis, manual QA planning, interpretation of Copilot findings, detailed implementation specifications for Codex, and Build Week demo/submission planning.
 
-Human judgment remained responsible for product direction, architecture decisions, review and validation, manual testing, deployment, and final approval. Boat Binder does not currently include GPT-5.6-powered customer-facing features; AI-powered document search and maintenance insights are roadmap ideas.
+Concrete workflow examples:
+
+- GPT-5.6 helped define the subscription-domain requirements, access policy, edge cases, and tests; Codex implemented the local subscription foundation.
+- GPT-5.6 helped reason through Stripe webhook verification, idempotency, retry behavior, and sensitive-log filtering; Codex made the repository changes and tests.
+- GPT-5.6 helped analyze CI failures and dependency advisories; Codex applied focused lockfile/security patches.
+- GPT-5.6 helped shape the subscription plan catalog and Stripe-ready configuration boundaries; Codex implemented the catalog and coverage.
+- GPT-5.6 helped define the Build Week demo-account setup, safety requirements, and QA plan; Codex built the repeatable seed workflow.
+
+Human judgment remained responsible for product direction, architecture decisions, review, manual testing, deployment, and final approval.
+
+Planned GPT-5.6 feature: a Vessel Ownership Brief that synthesizes reminders, service history, inspection findings, engine hours, and follow-up items into a concise owner summary. This is roadmap functionality, not part of the running application today. Feature issue: TBD once the GitHub issue is created.
 
 ## Detailed Documentation
 
