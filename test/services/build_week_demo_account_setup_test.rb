@@ -1,0 +1,129 @@
+require "test_helper"
+require "stringio"
+
+class BuildWeekDemoAccountSetupTest < ActiveSupport::TestCase
+  DEMO_EMAIL = "build-week-demo@example.test"
+  DEMO_PASSWORD = "super-secret-demo-password"
+
+  setup do
+    @previous_email = ENV["BUILD_WEEK_DEMO_EMAIL"]
+    @previous_password = ENV["BUILD_WEEK_DEMO_PASSWORD"]
+    ENV["BUILD_WEEK_DEMO_EMAIL"] = DEMO_EMAIL
+    ENV["BUILD_WEEK_DEMO_PASSWORD"] = DEMO_PASSWORD
+  end
+
+  teardown do
+    ENV["BUILD_WEEK_DEMO_EMAIL"] = @previous_email
+    ENV["BUILD_WEEK_DEMO_PASSWORD"] = @previous_password
+  end
+
+  test "first run creates the expected demo user account and content" do
+    output = StringIO.new
+
+    assert_difference -> { Account.count }, 1 do
+      assert_difference -> { User.count }, 1 do
+        assert_difference -> { Subscription.count }, 1 do
+          assert_difference -> { AccountMembership.count }, 1 do
+            result = BuildWeek::DemoAccountSetup.call(output: output)
+
+            assert_equal "Alex Johnson", result.account.name
+            assert_equal DEMO_EMAIL, result.user.email_address
+          end
+        end
+      end
+    end
+
+    account = Account.find_by!(name: "Alex Johnson")
+    user = User.find_by!(email_address: DEMO_EMAIL)
+
+    assert_equal "client", account.account_type
+    assert_equal "America/Los_Angeles", account.time_zone
+    assert account.active?
+    assert user.owner?
+    assert user.active?
+    assert user.authenticate(DEMO_PASSWORD)
+    assert_includes account.notes, BuildWeek::DemoAccountSetup::DEMO_MARKER
+    assert_equal %w[Reel\ Escape Sea\ Breeze], account.assets.vessels.order(:name).pluck(:name)
+    assert_equal 5, account.documents.count
+    assert_equal 4, account.assets.joins(:service_visits).count
+    assert_equal 5, account.assets.joins(:reminders).count
+    assert_equal 4, account.binder_notes.count
+    assert_not_includes output.string, DEMO_PASSWORD
+    assert_includes output.string, "Build Week demo account refreshed."
+  end
+
+  test "second run refreshes without duplicating core records" do
+    first_output = StringIO.new
+    BuildWeek::DemoAccountSetup.call(output: first_output)
+    account = Account.find_by!(name: "Alex Johnson")
+
+    counts_after_first_run = {
+      accounts: Account.count,
+      users: User.count,
+      memberships: AccountMembership.count,
+      subscriptions: Subscription.count,
+      vessels: account.assets.vessels.count,
+      documents: account.documents.count,
+      service_visits: ServiceVisit.joins(:asset).where(assets: { account_id: account.id }).count,
+      reminders: Reminder.joins(:asset).where(assets: { account_id: account.id }).count
+    }
+
+    second_output = StringIO.new
+    BuildWeek::DemoAccountSetup.call(output: second_output)
+    account.reload
+
+    assert_equal counts_after_first_run.fetch(:accounts), Account.count
+    assert_equal counts_after_first_run.fetch(:users), User.count
+    assert_equal counts_after_first_run.fetch(:memberships), AccountMembership.count
+    assert_equal counts_after_first_run.fetch(:subscriptions), Subscription.count
+    assert_equal counts_after_first_run.fetch(:vessels), account.assets.vessels.count
+    assert_equal counts_after_first_run.fetch(:documents), account.documents.count
+    assert_equal counts_after_first_run.fetch(:service_visits),
+      ServiceVisit.joins(:asset).where(assets: { account_id: account.id }).count
+    assert_equal counts_after_first_run.fetch(:reminders),
+      Reminder.joins(:asset).where(assets: { account_id: account.id }).count
+    assert_not_includes second_output.string, DEMO_PASSWORD
+  end
+
+  test "unrelated accounts are untouched" do
+    unrelated = create_account(name: "Unrelated Owner")
+    unrelated_vessel = create_vessel(account: unrelated, name: "Unrelated Vessel")
+
+    BuildWeek::DemoAccountSetup.call(output: StringIO.new)
+
+    assert Account.exists?(unrelated.id)
+    assert Asset.exists?(unrelated_vessel.id)
+    assert_equal "Unrelated Owner", unrelated.reload.name
+    assert_equal "Unrelated Vessel", unrelated_vessel.reload.name
+  end
+
+  test "demo owner has active membership and valid local subscription" do
+    BuildWeek::DemoAccountSetup.call(output: StringIO.new)
+
+    account = Account.find_by!(name: "Alex Johnson")
+    user = User.find_by!(email_address: DEMO_EMAIL)
+    membership = AccountMembership.find_by!(account: account, user: user)
+    subscription = account.subscription
+
+    assert membership.active?
+    assert_equal "read_only", membership.access_level
+    assert subscription.valid?
+    assert_equal "legacy", subscription.plan
+    assert_equal "active", subscription.status
+    assert_equal "local", subscription.provider
+    assert subscription.access_allowed?
+    assert_not subscription.managed_externally?
+    assert_nil subscription.external_customer_id
+    assert_nil subscription.external_subscription_id
+  end
+
+  test "conflicting non demo account is rejected clearly" do
+    create_account(name: "Alex Johnson")
+
+    error = assert_raises(BuildWeek::DemoAccountSetup::ConflictError) do
+      BuildWeek::DemoAccountSetup.call(output: StringIO.new)
+    end
+
+    assert_includes error.message, "not marked as the Build Week demo account"
+  end
+end
